@@ -1,0 +1,36 @@
+{% extends 'web/base.html' %}
+{% load static %}
+{% block content %}
+
+    <h1>Login</h1>
+    {% if form.errors %}
+      <p>Something is wrong with your login.</p>
+      {{form.errors}}
+    {% endif %}
+
+    <form method="POST" action="{% url 'register' %}">
+        {% csrf_token %}
+
+        {{ form.first_name.label_tag }}
+        {{ form.first_name }}
+        <br>
+        {{ form.last_name.label_tag }}
+        {{ form.last_name }}
+        <br>
+        {{ form.email.label_tag }}
+        {{ form.username }}
+        <br>
+        {{ form.password1.label_tag }}
+        {{ form.password1 }}
+        <br>
+        {{ form.password2.label_tag }}
+        {{ form.password2 }}
+        <br>
+        <input type="hidden" name="next" value="{{ next }}" />
+        <input type="submit" value="Sign up" />
+    </form>
+
+{% endblock %}
+
+
+

@@ -1,0 +1,26 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <link href="{% static 'web/css/default.css' %} " type="text/css" rel="stylesheet" media="all" />
+    <link href="https://fonts.googleapis.com/css?family=Permanent+Marker&display=swap" rel="stylesheet">
+    <title>{{title}}</title>
+  </head>
+  <body>
+
+
+
+    <script>
+      window.onerror=function(sMsg, sUrl, iLine)
+      {
+        //record_js_error(sMsg, sUrl, iLine);
+      }
+      var ns = {};
+      ns.start_ts = new Date().getTime();
+      ns.BASE_URL = '{{base_url}}';
+    </script>

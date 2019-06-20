@@ -1,0 +1,53 @@
+{% load static %}
+
+<div id="debug_bar" style="
+display: none;
+background: white;
+color: black;
+font-family: verdana;
+border: 2px solid black;
+z-index: 1000;
+padding:2px;
+font-size: 16px;
+clear: both;
+margin-bottom: 50px;
+xposition: absolute;
+xbottom: 0;
+xleft:0;
+xright:0;
+">
+  python time:
+  js time: <span id="debug_js_time"></span>
+  ajax time: <span id="debug_ajax_time"></span>
+  total time: <span id="debug_total_time"></span>
+  last ajax time: <span id="debug_last_ajax_time"></span>
+
+
+  <a href="'.BASE_URL.'/site_admin/session">session</a>
+  <a href="'.BASE_URL.'/site_admin/constants">constants</a>
+</div>
+
+    <script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+    <script src="{% static 'web/js/util.js' %}"></script>
+    <script src="{% static 'web/js/gameplay.js' %}"></script>
+
+
+
+
+<script>
+
+
+// avoid console.log errors in ie
+if(typeof console == "undefined")
+    this.console = {log: function(){}};
+
+
+//set_js_time(); // this should always be the last js statement on the page
+
+</script>
+</body>
+</html>
+
+

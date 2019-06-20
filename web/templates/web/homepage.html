@@ -1,0 +1,21 @@
+{% extends 'web/base.html' %}
+{% load static %}
+{% block content %}
+
+<center>
+  {%csrf_token%}
+
+  <div id="connect4-boardxxx">
+    {{board|safe}}
+  </div>
+
+
+</center>
+
+{% endblock %}
+
+
+
+
+
+

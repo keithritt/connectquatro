@@ -1,0 +1,33 @@
+<nav class="navbar navbar-expand-lg navbar-darkx bg-darkx" xstyle="background-color: #CE1C0D;">
+  <a class="navbar-brand" href="#">p36525x</a>
+  <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  <div class="collapse navbar-collapse" id="navbarSupportedContent" style="font-size: 18px;">
+
+    <ul class="navbar-nav mr-auto">
+
+      {% if user.is_authenticated %}
+        <li class="nav-item">
+          <a class="nav-link" href="/dashboard">Dashboard</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="https://github.com/keithritt/p36525x">Source Code</a>
+        </li>
+
+
+
+      {% endif %}
+    </ul>
+    {% if user.is_authenticated %}
+      <div style="font-size: 18px;">Logged in as: {{ user.email }}</div>
+      &nbsp;&nbsp;
+      <a href="/logout/"><button class="btn btn-outline-danger my-2 my-sm-0" type="submit">Log Out</button></a>
+    {% else %}
+      <a href="/login/"><button class="btn btn-outline-danger my-2 my-sm-0" type="submit">Log In</button></a>
+      &nbsp;
+      <!--<a href="/register/"><button class="btn btn-outline-danger my-2 my-sm-0" type="submit">Sign Up</button></a>-->
+    {% endif %}
+  </div>
+</nav>

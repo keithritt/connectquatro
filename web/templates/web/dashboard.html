@@ -1,0 +1,45 @@
+{% extends 'web/base.html' %}
+{% load static %}
+{% block content %}
+
+<script src="{% static 'web/js/dashboard.js' %}"></script>
+
+    <br><br>
+    <center>
+    <div class="header">
+    <h3>Enter your sets:</h3>
+    {% csrf_token %}
+
+    </div>
+    <h3><input id="enter_reps"> {{exercise_select}}  </h3>
+    <button id="save-btn" type="button" class="btn btn-primary" onclick="ns.click_save();">Save</button>
+    <br>
+
+    <button type="button" class="btn btn-info entry-btn" onclick="ns.click_rep_num(1);">1</button>
+    <button type="button" class="btn btn-info entry-btn" onclick="ns.click_rep_num(2);">2</button>
+    <button type="button" class="btn btn-info entry-btn" onclick="ns.click_rep_num(3);">3</button>
+    <br>
+    <button type="button" class="btn btn-info entry-btn" onclick="ns.click_rep_num(4);">4</button>
+    <button type="button" class="btn btn-info entry-btn" onclick="ns.click_rep_num(5);">5</button>
+    <button type="button" class="btn btn-info entry-btn" onclick="ns.click_rep_num(6);">6</button>
+    <br>
+    <button type="button" class="btn btn-info entry-btn" onclick="ns.click_rep_num(7);">7</button>
+    <button type="button" class="btn btn-info entry-btn" onclick="ns.click_rep_num(8);">8</button>
+    <button type="button" class="btn btn-info entry-btn" onclick="ns.click_rep_num(9);">9</button>
+    <br>
+    <button type="button" class="btn btn-info entry-btn" onclick="ns.click_rep_num(0);">0</button>
+    <br><br>
+    <button id="clear-btn" type="button" class="btn btn-primary" onclick="ns.click_clear();">Clear</button>
+
+
+    <br><br>
+    <h1>Stats:</h1>
+    {% for exercise, reps in rep_counts.items %}
+    <h3>{{exercise}} : {{reps}}</h3>
+    {% endfor %}
+    <h1>Reps remaining: {{reps_remaining}}</h1>
+    <center>
+
+{% endblock %}
+
+

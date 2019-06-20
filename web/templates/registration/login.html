@@ -1,0 +1,25 @@
+{% extends 'web/base.html' %}
+{% load static %}
+{% block content %}
+
+  <center>
+    <h1>Login</h1>
+    {% if form.errors %}
+      <p>Something is wrong with your login.</p>
+      {{form.errors}}
+    {% endif %}
+
+    <form method="POST" action="{% url 'login' %}">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <input type="hidden" name="next" value="{{ next }}" />
+        <input type="submit" value="login" />
+    </form>
+  </center>
+
+{% endblock %}
+
+
+
+
+

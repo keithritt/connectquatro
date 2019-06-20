@@ -1,0 +1,67 @@
+body{
+  xbackground-color: black;
+}
+
+.bold{
+  font-weight: bold;
+}
+
+.clickable{
+  cursor: pointer;
+}
+
+.unclickable{
+  cursor: not-allowed;
+}
+
+.center{
+  text-align: center;
+}
+
+.centered{
+  margin: auto;
+}
+
+.underlined{
+  text-decoration: underline;
+}
+
+.hidden{
+  display:none;
+}
+
+#connect4-board{
+  background: white;
+  width: 800px;
+}
+
+#connect4-board tr td{
+  width: 75px;
+  height: 75px;
+}
+
+#connect4-board tr td.spot{
+  border: 5px solid blue;
+}
+
+#connect4-board tr td{
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center center;
+}
+
+#connect4-board tr td.red{
+  background-image: url('http://connectcuatro.com/static/web/img/red-checker.png');
+}
+
+#connect4-board tr td.yellow{
+  background-image: url('http://connectcuatro.com/static/web/img/yellow-checker.png');
+}
+
+#connect4-board tr td.red-highlight{
+  background-image: url('http://connectcuatro.com/static/web/img/red-checker-highlight.png');
+}
+
+#connect4-board tr td.yellow-highlight{
+  background-image: url('http://connectcuatro.com/static/web/img/yellow-checker-highlight.png');
+}
