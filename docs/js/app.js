@@ -12,14 +12,17 @@
   var CPU_DELAY = 550;
   var STORE_KEY = 'connectquatro';
 
-  var boardEl = document.getElementById('board');
-  var dropRowEl = document.getElementById('drop-row');
-  var statusEl = document.getElementById('status');
-  var lastMoveEl = document.getElementById('last-move');
-  var scoreEl = document.getElementById('score');
-  var undoBtn = document.getElementById('undo');
-  var skillEl = document.getElementById('skill');
-  var resultModalEl = document.getElementById('result-modal');
+  // short alias for document.getElementById (local to this file, so it won't clash with jQuery)
+  function $(id) { return document.getElementById(id); }
+
+  var boardEl = $('board');
+  var dropRowEl = $('drop-row');
+  var statusEl = $('status');
+  var lastMoveEl = $('last-move');
+  var scoreEl = $('score');
+  var undoBtn = $('undo');
+  var skillEl = $('skill');
+  var resultModalEl = $('result-modal');
   var resultModal = window.bootstrap ? new bootstrap.Modal(resultModalEl) : null;
 
   var saved = load();
@@ -164,8 +167,8 @@
     if (game.status === 'tie') { title = 'Tie game'; body = 'The board is full - nobody connected four.'; }
     else if (game.winner === HUMAN) { title = 'You win!'; body = 'Four in a row: ' + game.winningSeq.join(', ') + '.'; }
     else { title = 'Computer wins'; body = 'It connected ' + game.winningSeq.join(', ') + '.'; }
-    document.getElementById('result-title').textContent = title;
-    document.getElementById('result-body').textContent = body;
+    $('result-title').textContent = title;
+    $('result-body').textContent = body;
     if (resultModal) setTimeout(function () { resultModal.show(); }, 900);
   }
 
@@ -232,8 +235,8 @@
     if (n >= 1 && n <= 7) tryPlay(COLS[n - 1]);
   });
 
-  document.getElementById('new-game').addEventListener('click', function () { newGame(); });
-  document.getElementById('play-again').addEventListener('click', function () {
+  $('new-game').addEventListener('click', function () { newGame(); });
+  $('play-again').addEventListener('click', function () {
     if (resultModal) resultModal.hide();
     newGame();
   });
@@ -243,7 +246,7 @@
 
   // ---------- start ----------
   if (saved.skill) skillEl.value = saved.skill;
-  if (saved.first === CPU) document.getElementById('first-cpu').checked = true;
+  if (saved.first === CPU) $('first-cpu').checked = true;
   buildBoard();
   newGame(saved.history && !Connect4.fromHistory(saved.history).gameOver ? saved.history : null);
 })();
