@@ -1,0 +1,90 @@
+/* Connect Quatro - layout and board styles on top of Bootstrap */
+
+:root {
+  --board: #1d4ed8;
+  --board-edge: #163aa6;
+  --hole: #ffffff;
+  --gap: clamp(4px, 1.6vw, 10px);
+  --pad: clamp(6px, 2vw, 12px);
+}
+[data-bs-theme="dark"] {
+  --board: #2453d6;
+  --board-edge: #17379a;
+  --hole: #12161c;
+}
+
+.app-width { max-width: 560px; }
+
+.status { font-size: 1.15rem; min-height: 1.6em; }
+.status .dot {
+  display: inline-block; width: .8em; height: .8em; border-radius: 50%;
+  margin-right: .35em; vertical-align: -.05em;
+}
+.status .dot.red { background: #f00; }
+.status .dot.yellow { background: #ffd200; }
+
+.board-wrap { user-select: none; -webkit-user-select: none; touch-action: manipulation; }
+
+/* row of buttons above the board - shows where the checker will go */
+.drop-row {
+  display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--gap); padding: 0 var(--pad);
+}
+.drop-btn {
+  aspect-ratio: 1; border: 0; padding: 0; background: transparent;
+  border-radius: 50%; position: relative; cursor: pointer;
+}
+.drop-btn::after {
+  content: ""; position: absolute; inset: 22% 22% 30%;
+  border-left: .35rem solid transparent; border-right: .35rem solid transparent;
+  border-top: .5rem solid var(--bs-secondary-color);
+  width: 0; height: 0; margin: auto; opacity: .45;
+}
+.drop-btn.preview::after { display: none; }
+.drop-btn.preview.red { background: center / 88% no-repeat url("../img/red-checker.png"); opacity: .55; }
+.drop-btn.preview.yellow { background: center / 88% no-repeat url("../img/yellow-checker.png"); opacity: .55; }
+.drop-btn:disabled { cursor: not-allowed; }
+.drop-btn:disabled::after { opacity: .12; }
+.drop-btn:focus:not(:focus-visible) { outline: none; box-shadow: none; }
+.drop-btn:focus-visible { outline: 3px solid var(--bs-primary); outline-offset: 2px; }
+
+.board {
+  display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--gap); padding: var(--pad);
+  background: var(--board);
+  border-radius: 14px;
+  box-shadow: inset 0 -6px 0 var(--board-edge), 0 6px 18px rgba(0, 0, 0, .18);
+  margin-top: 4px;
+}
+.slot {
+  aspect-ratio: 1; border-radius: 50%; background: var(--hole);
+  box-shadow: inset 0 3px 4px rgba(0, 0, 0, .28);
+  position: relative; cursor: pointer;
+}
+.slot.full-col { cursor: not-allowed; }
+.disc {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: center / cover no-repeat;
+}
+.disc.red { background-image: url("../img/red-checker.png"); }
+.disc.yellow { background-image: url("../img/yellow-checker.png"); }
+.disc.red.highlight { background-image: url("../img/red-checker-highlight.png"); }
+.disc.yellow.highlight { background-image: url("../img/yellow-checker-highlight.png"); }
+.disc.win { animation: pulse 1s ease-in-out infinite alternate; }
+
+.disc.falling { z-index: 2; animation: fall var(--dur, 400ms) cubic-bezier(.5, 0, 1, .6) both, bounce 160ms ease-out var(--dur, 400ms); }
+
+@keyframes fall {
+  from { transform: translateY(calc(var(--fall, 1) * -110%)); }
+  to { transform: translateY(0); }
+}
+@keyframes bounce {
+  50% { transform: translateY(-8%); }
+}
+@keyframes pulse {
+  to { transform: scale(.86); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .disc.falling, .disc.win { animation: none; }
+}

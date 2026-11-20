@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Connect Quatro</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css">
+  <link rel="stylesheet" href="css/style.css">
+  <script>
+    // follow the viewer's light/dark setting
+    (function () {
+      var root = document.documentElement;
+      function apply() {
+        var t = root.getAttribute('data-theme');
+        if (t !== 'light' && t !== 'dark') {
+          t = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        root.setAttribute('data-bs-theme', t);
+      }
+      apply();
+      new MutationObserver(apply).observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+      if (window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', apply);
+    })();
+  </script>
+</head>
+<body>
+  <nav class="navbar navbar-dark bg-primary">
+    <div class="container app-width">
+      <span class="navbar-brand mb-0 h1">Connect Quatro</span>
+      <span class="navbar-text small" id="score" aria-live="polite">0 W · 0 L · 0 T</span>
+    </div>
+  </nav>
+
+  <main class="container app-width py-3">
+    <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+      <div id="status" class="status fw-semibold" aria-live="polite">Your turn</div>
+      <div id="last-move" class="text-body-secondary small text-end"></div>
+    </div>
+
+    <div class="board-wrap">
+      <div id="drop-row" class="drop-row" role="group" aria-label="Drop a checker"></div>
+      <div id="board" class="board" aria-label="Connect 4 board"></div>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2 mt-3">
+      <button id="new-game" type="button" class="btn btn-primary flex-grow-1">New game</button>
+      <button id="undo" type="button" class="btn btn-outline-secondary flex-grow-1">Undo</button>
+    </div>
+
+    <div class="card mt-3">
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-12 col-sm-6">
+            <label class="form-label small text-body-secondary mb-1">Who goes first</label>
+            <div class="btn-group w-100" role="group" aria-label="Who goes first">
+              <input type="radio" class="btn-check" name="first" id="first-you" value="red" autocomplete="off" checked>
+              <label class="btn btn-outline-primary" for="first-you">You</label>
+              <input type="radio" class="btn-check" name="first" id="first-cpu" value="yellow" autocomplete="off">
+              <label class="btn btn-outline-primary" for="first-cpu">Computer</label>
+            </div>
+          </div>
+          <div class="col-12 col-sm-6">
+            <label for="skill" class="form-label small text-body-secondary mb-1">Computer</label>
+            <select id="skill" class="form-select">
+              <option value="1">Easy – random moves</option>
+              <option value="2" selected>Medium – wins and blocks</option>
+            </select>
+          </div>
+        </div>
+        <p class="small text-body-secondary mb-0 mt-3">You're red. Tap a column to drop a checker. Settings apply to the next game.</p>
+      </div>
+    </div>
+  </main>
+
+  <div class="modal fade" id="result-modal" tabindex="-1" aria-labelledby="result-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title fs-5" id="result-title">Game over</h2>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body" id="result-body"></div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">See board</button>
+          <button type="button" class="btn btn-primary" id="play-again">Play again</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+  <script src="js/connect4.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
