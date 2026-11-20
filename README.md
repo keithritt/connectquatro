@@ -33,6 +33,8 @@ node docs/test/connect4.test.js
   possible four-in-a-row lines are still open (with 1, 2 or 3 of that color's checkers already in them),
   plus how many "sevens" are still open (a row of four plus a diagonal of four from one end, sharing an
   empty corner, so filling the corner makes a double threat).
+- The computer explains every move (victory, blocking your Connect Four, staying near the center,
+  avoiding a setup, or random), shown under the board and in a running **Move log**.
 - Undo, a running score, and the game in progress are saved in the browser.
 
 ## Django version

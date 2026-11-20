@@ -161,25 +161,34 @@
     return win;
   };
 
-  // Pick a column for the computer.
+  // Pick a move for the computer and explain why.
   //  skill 1 (easy):   random column - same as the original Python version
   //  skill 2 (medium): win if it can, block if it must, avoid handing over a win, favour the centre
-  Connect4.prototype.pickCol = function (skill, rand) {
+  // Returns { col, reason, text } where reason is one of:
+  //  'win' | 'block' | 'center' | 'near-center' | 'random' | 'forced'
+  Connect4.prototype.pickMove = function (skill, rand) {
     rand = rand || Math.random;
     var cols = this.availableCols();
     if (!cols.length) return null;
     var pickRandom = function (list) { return list[Math.floor(rand() * list.length)]; };
-    if (skill !== 2) return pickRandom(cols);
+    if (skill !== 2) {
+      return { col: pickRandom(cols), reason: 'random', text: 'Random move (Easy level picks any open column).' };
+    }
 
     var me = this.currentTurn;
     var them = me === 'red' ? 'yellow' : 'red';
     var self = this;
     var i;
 
-    for (i = 0; i < cols.length; i++) if (this.wouldWin(cols[i], me)) return cols[i];
-    for (i = 0; i < cols.length; i++) if (this.wouldWin(cols[i], them)) return cols[i];
+    for (i = 0; i < cols.length; i++) {
+      if (this.wouldWin(cols[i], me)) return { col: cols[i], reason: 'win', text: 'Moving here for victory.' };
+    }
+    for (i = 0; i < cols.length; i++) {
+      if (this.wouldWin(cols[i], them)) return { col: cols[i], reason: 'block', text: 'Moving here to block your Connect Four.' };
+    }
 
     // don't play directly under a spot the opponent could win on
+    var skipped = [];
     var safe = cols.filter(function (col) {
       if (self.heights[col] + 2 > ROWS) return true;
       var below = col + (self.heights[col] + 1);
@@ -188,20 +197,38 @@
       var givesWin = self.wouldWin(col, them);
       self.heights[col] -= 1;
       delete self.grid[below];
+      if (givesWin) skipped.push(col + (self.heights[col] + 2));
       return !givesWin;
     });
-    var choices = safe.length ? safe : cols;
+    if (!safe.length) {
+      var forced = pickRandom(cols);
+      return { col: forced, reason: 'forced', text: 'Every column sets you up to win, so this is the least bad choice (picked at random).' };
+    }
 
     // weight columns toward the centre
     var weights = { a: 1, b: 2, c: 3, d: 4, e: 3, f: 2, g: 1 };
     var total = 0;
-    choices.forEach(function (c) { total += weights[c]; });
+    safe.forEach(function (c) { total += weights[c]; });
     var roll = rand() * total;
-    for (i = 0; i < choices.length; i++) {
-      roll -= weights[choices[i]];
-      if (roll < 0) return choices[i];
+    var pick = safe[safe.length - 1];
+    for (i = 0; i < safe.length; i++) {
+      roll -= weights[safe[i]];
+      if (roll < 0) { pick = safe[i]; break; }
     }
-    return choices[choices.length - 1];
+
+    var reason, text;
+    if (pick === 'd') { reason = 'center'; text = 'Taking the center column.'; }
+    else if (pick === 'c' || pick === 'e') { reason = 'near-center'; text = 'Staying near the center.'; }
+    else { reason = 'random'; text = 'No special reason, so this is a random pick.'; }
+    if (skipped.length) {
+      text += ' (Avoided ' + skipped.join(', ') + ': filling the spot below would let you win there.)';
+    }
+    return { col: pick, reason: reason, text: text };
+  };
+
+  Connect4.prototype.pickCol = function (skill, rand) {
+    var move = this.pickMove(skill, rand);
+    return move ? move.col : null;
   };
 
   // Numbers for studying the position.

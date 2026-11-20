@@ -28,6 +28,7 @@
   var saved = load();
   var score = saved.score || { w: 0, l: 0, t: 0 };
   var game;
+  var reasons = [];   // reasons[i] explains game.history[i]; null for the human's moves
   var busy = false;      // true while the computer is "thinking"
   var cpuTimer = null;
 
@@ -40,6 +41,7 @@
       localStorage.setItem(STORE_KEY, JSON.stringify({
         score: score,
         history: game.getHistory(),
+        reasons: reasons,
         skill: skillEl.value,
         first: firstChoice()
       }));
@@ -114,6 +116,7 @@
 
     renderStatus();
     renderStats();
+    renderLog();
     scoreEl.textContent = score.w + ' W · ' + score.l + ' L · ' + score.t + ' T';
   }
 
@@ -127,6 +130,31 @@
       $('st-' + c + '-sevens-close').textContent = st[c].sevensClose;
       for (var n = 1; n <= 3; n++) $('st-' + c + '-c' + n).textContent = st[c].byCount[n];
     });
+  }
+
+  function renderLog() {
+    var logEl = $('log');
+    if (!game.history.length) {
+      logEl.innerHTML = '<li class="text-body-secondary">No moves yet.</li>';
+      $('why-text').textContent = 'It will explain each of its moves here.';
+      return;
+    }
+    var html = '';
+    var lastCpu = null;
+    game.history.forEach(function (spot, i) {
+      var color = game.grid[spot];
+      var why = reasons[i] || '';
+      if (why) lastCpu = why;
+      html += '<li' + (i === game.history.length - 1 ? ' class="latest"' : '') + '><span class="n">' + (i + 1) + '.</span>' +
+        '<span class="dot ' + color + '"></span><span class="spot">' + spot + '</span>' +
+        '<span class="why">' + (color === HUMAN ? 'You' : escapeHtml(why || 'Computer')) + '</span></li>';
+    });
+    logEl.innerHTML = html;
+    $('why-text').textContent = lastCpu || 'It will explain each of its moves here.';
+  }
+
+  function escapeHtml(t) {
+    return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; });
   }
 
   function renderStatus() {
@@ -147,9 +175,11 @@
   }
 
   // ---------- game flow ----------
-  function play(col) {
+  function play(col, reason) {
     var spot = game.dropChecker(col);
     if (!spot) return;
+    reasons.length = game.history.length - 1;
+    reasons.push(reason || null);
     render(spot);
     save();
     if (game.gameOver) {
@@ -165,7 +195,8 @@
     cpuTimer = setTimeout(function () {
       cpuTimer = null;
       busy = false;
-      play(game.pickCol(parseInt(skillEl.value, 10)));
+      var move = game.pickMove(parseInt(skillEl.value, 10));
+      play(move.col, move.text);
     }, CPU_DELAY);
   }
 
@@ -189,6 +220,9 @@
     if (cpuTimer) { clearTimeout(cpuTimer); cpuTimer = null; }
     busy = false;
     game = historyStr ? Connect4.fromHistory(historyStr) : new Connect4({ firstMove: firstChoice() });
+    reasons = [];
+    if (historyStr && Array.isArray(saved.reasons) && saved.reasons.length === game.history.length) reasons = saved.reasons.slice();
+    else while (reasons.length < game.history.length) reasons.push(null);
     render();
     save();
     if (!game.gameOver && game.currentTurn === CPU) cpuTurn();
@@ -204,6 +238,7 @@
       popped = game.grid[game.lastSpot()];
       game.undo();
     } while (popped !== HUMAN && game.history.length);
+    reasons.length = game.history.length;
     if (wasOver) { // un-count the finished game
       if (status === 'tie') score.t = Math.max(0, score.t - 1);
       else if (winner === HUMAN) score.w = Math.max(0, score.w - 1);

@@ -42,6 +42,10 @@
       <div id="board" class="board" aria-label="Connect 4 board"></div>
     </div>
 
+    <div id="why" class="alert alert-info py-2 px-3 mt-3 mb-0 small" role="status" aria-live="polite">
+      <span class="fw-semibold">Computer's reasoning:</span> <span id="why-text">It will explain each of its moves here.</span>
+    </div>
+
     <div class="d-flex flex-wrap gap-2 mt-3">
       <button id="new-game" type="button" class="btn btn-primary flex-grow-1">New game</button>
       <button id="undo" type="button" class="btn btn-outline-secondary flex-grow-1">Undo</button>
@@ -73,6 +77,15 @@
         </table>
         <p class="small text-body-secondary mb-1">A line is a possible four in a row. It stays open for a color until the other color puts a checker in it.</p>
         <p class="small text-body-secondary mb-0">A seven is a row of four plus a diagonal of four going down from one end of it (or its mirror image). They share an empty corner spot, so whoever fills the corner makes two threats at once. A seven stays open while that corner is empty and the other color has no checker in any of its 7 spots.</p>
+      </div>
+    </div>
+
+    <div class="card mt-3" id="log-card">
+      <div class="card-body">
+        <h2 class="h6 mb-2">Move log</h2>
+        <ol id="log" class="move-log list-unstyled mb-0 small">
+          <li class="text-body-secondary">No moves yet.</li>
+        </ol>
       </div>
     </div>
 
