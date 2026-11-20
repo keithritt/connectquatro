@@ -47,6 +47,32 @@
       <button id="undo" type="button" class="btn btn-outline-secondary flex-grow-1">Undo</button>
     </div>
 
+    <div class="card mt-3" id="stats-card">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-baseline mb-2">
+          <h2 class="h6 mb-0">Game stats</h2>
+          <span class="small text-body-secondary"><strong id="st-left">42</strong> moves remaining</span>
+        </div>
+        <table class="table table-sm align-middle mb-1 stats-table">
+          <thead>
+            <tr>
+              <th scope="col"></th>
+              <th scope="col" class="text-end"><span class="dot red"></span>Red</th>
+              <th scope="col" class="text-end"><span class="dot yellow"></span>Yellow</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row" class="fw-normal">Moves left</th><td class="text-end" id="st-red-left"></td><td class="text-end" id="st-yellow-left"></td></tr>
+            <tr><th scope="row" class="fw-normal">Winning lines open <span class="text-body-secondary">/ 69</span></th><td class="text-end fw-semibold" id="st-red-open"></td><td class="text-end fw-semibold" id="st-yellow-open"></td></tr>
+            <tr><th scope="row" class="fw-normal ps-3">with 1 checker</th><td class="text-end" id="st-red-c1"></td><td class="text-end" id="st-yellow-c1"></td></tr>
+            <tr><th scope="row" class="fw-normal ps-3">with 2 checkers</th><td class="text-end" id="st-red-c2"></td><td class="text-end" id="st-yellow-c2"></td></tr>
+            <tr><th scope="row" class="fw-normal ps-3">with 3 checkers</th><td class="text-end" id="st-red-c3"></td><td class="text-end" id="st-yellow-c3"></td></tr>
+          </tbody>
+        </table>
+        <p class="small text-body-secondary mb-0">A line is a possible four in a row. It stays open for a color until the other color puts a checker in it.</p>
+      </div>
+    </div>
+
     <div class="card mt-3">
       <div class="card-body">
         <div class="row g-3">

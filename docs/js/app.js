@@ -113,7 +113,18 @@
     undoBtn.disabled = busy || !game.history.some(function (s) { return game.grid[s] === HUMAN; });
 
     renderStatus();
+    renderStats();
     scoreEl.textContent = score.w + ' W · ' + score.l + ' L · ' + score.t + ' T';
+  }
+
+  function renderStats() {
+    var st = game.stats();
+    $('st-left').textContent = st.movesLeft;
+    ['red', 'yellow'].forEach(function (c) {
+      $('st-' + c + '-left').textContent = st[c].movesLeft;
+      $('st-' + c + '-open').textContent = st[c].open;
+      for (var n = 1; n <= 3; n++) $('st-' + c + '-c' + n).textContent = st[c].byCount[n];
+    });
   }
 
   function renderStatus() {

@@ -29,6 +29,8 @@ node docs/test/connect4.test.js
 - Either player can go first.
 - Two computer levels: **Easy** (random moves, like the original) and **Medium** (takes a win,
   blocks yours, avoids setting you up, prefers the centre).
+- A **Game stats** panel for studying play: moves remaining, and for each color how many of the 69
+  possible four-in-a-row lines are still open (with 1, 2 or 3 of that color's checkers already in them).
 - Undo, a running score, and the game in progress are saved in the browser.
 
 ## Django version

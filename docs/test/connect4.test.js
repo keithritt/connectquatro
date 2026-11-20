@@ -36,5 +36,14 @@ g = new Connect4({firstMove:'yellow'}); g.dropChecker('a'); assert.strictEqual(g
 // medium AI wins / blocks
 g = play(['a','b','a','b','a']); assert.strictEqual(g.pickCol(2), 'a'); // yellow must block red's column
 g = play(['a','b','a','b','a','b']); assert.strictEqual(g.pickCol(2), 'a'); // red takes its own win first
+// stats
+g = new Connect4(); let st = g.stats();
+assert.strictEqual(Connect4.LINES.length, 69); assert.strictEqual(st.movesLeft, 42);
+assert.strictEqual(st.red.open, 69); assert.strictEqual(st.yellow.open, 69); assert.strictEqual(st.red.movesLeft, 21);
+g.dropChecker('d'); st = g.stats();  // red d1: kills yellow lines through d1 (1 vertical, 4 horizontal... counted below)
+const through = Connect4.LINES.filter(l => l.includes('d1')).length;
+assert.strictEqual(st.yellow.open, 69 - through); assert.strictEqual(st.red.open, 69);
+assert.strictEqual(st.red.byCount[1], through); assert.strictEqual(st.movesLeft, 41); assert.strictEqual(st.red.movesLeft, 20);
+g = play(['a','b','a','b','a']); st = g.stats(); assert.ok(st.red.byCount[3] >= 1);
 console.log('all tests passed');
 

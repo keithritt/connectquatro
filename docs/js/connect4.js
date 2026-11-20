@@ -13,6 +13,22 @@
   // the four directions a line of 4 can run in (col step, row step)
   var DIRECTIONS = [[1, 0], [0, 1], [1, 1], [1, -1]];
 
+  // all 69 possible lines of four (24 horizontal, 21 vertical, 24 diagonal)
+  var LINES = [];
+  (function () {
+    for (var c = 0; c < COLS.length; c++) {
+      for (var r = 1; r <= ROWS; r++) {
+        for (var d = 0; d < DIRECTIONS.length; d++) {
+          var ec = c + DIRECTIONS[d][0] * 3, er = r + DIRECTIONS[d][1] * 3;
+          if (ec < 0 || ec >= COLS.length || er < 1 || er > ROWS) continue;
+          var line = [];
+          for (var i = 0; i < 4; i++) line.push(COLS[c + DIRECTIONS[d][0] * i] + (r + DIRECTIONS[d][1] * i));
+          LINES.push(line);
+        }
+      }
+    }
+  })();
+
   function Connect4(options) {
     options = options || {};
     this.firstMove = options.firstMove === 'yellow' ? 'yellow' : 'red';
@@ -25,6 +41,7 @@
 
   Connect4.COLS = COLS;
   Connect4.ROWS = ROWS;
+  Connect4.LINES = LINES;
 
   Connect4.prototype.reset = function () {
     this.history = [];
@@ -166,6 +183,32 @@
       if (roll < 0) return choices[i];
     }
     return choices[choices.length - 1];
+  };
+
+  // Numbers for studying the position.
+  //  movesLeft:  empty spots left on the board (and how many each colour still gets to play)
+  //  open:       lines of four that contain none of the opponent's checkers - still possible to win
+  //  byCount[n]: of those open lines, how many already hold n of that colour's checkers (n = 0..3)
+  Connect4.prototype.stats = function () {
+    var played = { red: 0, yellow: 0 };
+    for (var s in this.grid) played[this.grid[s]]++;
+    var half = COLS.length * ROWS / 2;
+    var out = {
+      movesLeft: COLS.length * ROWS - this.history.length,
+      totalLines: LINES.length,
+      red: { movesLeft: half - played.red, open: 0, byCount: [0, 0, 0, 0] },
+      yellow: { movesLeft: half - played.yellow, open: 0, byCount: [0, 0, 0, 0] }
+    };
+    for (var i = 0; i < LINES.length; i++) {
+      var n = { red: 0, yellow: 0 };
+      for (var j = 0; j < 4; j++) {
+        var color = this.grid[LINES[i][j]];
+        if (color) n[color]++;
+      }
+      if (n.yellow === 0) { out.red.open++; out.red.byCount[n.red]++; }
+      if (n.red === 0) { out.yellow.open++; out.yellow.byCount[n.yellow]++; }
+    }
+    return out;
   };
 
   // History string in the original format: first mover's initial, then spots, e.g. "R-d1-d2-e1"
