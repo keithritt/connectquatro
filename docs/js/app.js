@@ -123,6 +123,8 @@
     ['red', 'yellow'].forEach(function (c) {
       $('st-' + c + '-left').textContent = st[c].movesLeft;
       $('st-' + c + '-open').textContent = st[c].open;
+      $('st-' + c + '-sevens').textContent = st[c].sevens;
+      $('st-' + c + '-sevens-close').textContent = st[c].sevensClose;
       for (var n = 1; n <= 3; n++) $('st-' + c + '-c' + n).textContent = st[c].byCount[n];
     });
   }

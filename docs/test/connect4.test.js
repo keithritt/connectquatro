@@ -45,5 +45,17 @@ const through = Connect4.LINES.filter(l => l.includes('d1')).length;
 assert.strictEqual(st.yellow.open, 69 - through); assert.strictEqual(st.red.open, 69);
 assert.strictEqual(st.red.byCount[1], through); assert.strictEqual(st.movesLeft, 41); assert.strictEqual(st.red.movesLeft, 20);
 g = play(['a','b','a','b','a']); st = g.stats(); assert.ok(st.red.byCount[3] >= 1);
+// sevens
+assert.strictEqual(Connect4.SEVENS.length, 24);
+Connect4.SEVENS.forEach(sv => { assert.strictEqual(new Set(sv.spots).size, 7); assert.strictEqual(sv.spots[0], sv.corner); });
+assert.deepStrictEqual(Connect4.SEVENS.find(sv => sv.corner === 'g4').spots, ['g4','f4','e4','d4','f3','e2','d1']); // a classic 7
+assert.deepStrictEqual(Connect4.SEVENS.find(sv => sv.corner === 'a4').spots, ['a4','b4','c4','d4','b3','c2','d1']); // mirror image
+g = new Connect4(); st = g.stats(); assert.strictEqual(st.red.sevens, 24); assert.strictEqual(st.yellow.sevens, 24);
+g.dropChecker('d'); st = g.stats(); // red d1 sits in two sevens (corners g4 and a4): yellow loses both
+assert.strictEqual(st.red.sevens, 24); assert.strictEqual(st.yellow.sevens, 22); assert.strictEqual(st.red.sevensClose, 0);
+g = new Connect4(); g.grid.g4 = 'red'; st = g.stats(); // occupied corner kills that seven for both; g4 is also in another seven's bar
+assert.strictEqual(st.red.sevens, 23); assert.strictEqual(st.yellow.sevens, 22);
+g = new Connect4(); g.grid.d4 = 'red'; g.grid.e4 = 'red'; st = g.stats(); // two red checkers in the g4 seven
+assert.ok(st.red.sevensClose >= 1);
 console.log('all tests passed');
 

@@ -29,6 +29,24 @@
     }
   })();
 
+  // All "sevens": a horizontal bar of four plus a diagonal of four going down from one end of the bar.
+  // They share one spot - the corner - so the 7 spots look like the number 7 (or its mirror image).
+  // Each entry: { corner: 'g4', spots: [corner, 3 bar spots, 3 diagonal spots] }
+  var SEVENS = [];
+  (function () {
+    for (var r = 4; r <= ROWS; r++) {
+      for (var c = 0; c < COLS.length; c++) {
+        for (var dir = -1; dir <= 1; dir += 2) {   // -1: bar runs left, diagonal down-left (a 7); +1: mirror image
+          if (c + dir * 3 < 0 || c + dir * 3 >= COLS.length) continue;
+          var spots = [COLS[c] + r];
+          for (var i = 1; i <= 3; i++) spots.push(COLS[c + dir * i] + r);          // bar
+          for (i = 1; i <= 3; i++) spots.push(COLS[c + dir * i] + (r - i));        // diagonal
+          SEVENS.push({ corner: COLS[c] + r, spots: spots });
+        }
+      }
+    }
+  })();
+
   function Connect4(options) {
     options = options || {};
     this.firstMove = options.firstMove === 'yellow' ? 'yellow' : 'red';
@@ -42,6 +60,7 @@
   Connect4.COLS = COLS;
   Connect4.ROWS = ROWS;
   Connect4.LINES = LINES;
+  Connect4.SEVENS = SEVENS;
 
   Connect4.prototype.reset = function () {
     this.history = [];
@@ -189,6 +208,7 @@
   //  movesLeft:  empty spots left on the board (and how many each colour still gets to play)
   //  open:       lines of four that contain none of the opponent's checkers - still possible to win
   //  byCount[n]: of those open lines, how many already hold n of that colour's checkers (n = 0..3)
+  //  sevens:     open sevens (see SEVENS); sevensClose: of those, how many already hold 2+ of that colour's checkers
   Connect4.prototype.stats = function () {
     var played = { red: 0, yellow: 0 };
     for (var s in this.grid) played[this.grid[s]]++;
@@ -196,17 +216,36 @@
     var out = {
       movesLeft: COLS.length * ROWS - this.history.length,
       totalLines: LINES.length,
-      red: { movesLeft: half - played.red, open: 0, byCount: [0, 0, 0, 0] },
-      yellow: { movesLeft: half - played.yellow, open: 0, byCount: [0, 0, 0, 0] }
+      totalSevens: SEVENS.length,
+      red: { movesLeft: half - played.red, open: 0, byCount: [0, 0, 0, 0], sevens: 0, sevensClose: 0 },
+      yellow: { movesLeft: half - played.yellow, open: 0, byCount: [0, 0, 0, 0], sevens: 0, sevensClose: 0 }
     };
-    for (var i = 0; i < LINES.length; i++) {
+    var i, j;
+    for (i = 0; i < LINES.length; i++) {
       var n = { red: 0, yellow: 0 };
-      for (var j = 0; j < 4; j++) {
+      for (j = 0; j < 4; j++) {
         var color = this.grid[LINES[i][j]];
         if (color) n[color]++;
       }
       if (n.yellow === 0) { out.red.open++; out.red.byCount[n.red]++; }
       if (n.red === 0) { out.yellow.open++; out.yellow.byCount[n.yellow]++; }
+    }
+    // sevens: still possible for a colour if the corner is empty and the opponent has no checker in any of the 7 spots
+    for (i = 0; i < SEVENS.length; i++) {
+      var seven = SEVENS[i];
+      if (this.grid[seven.corner]) continue;
+      var m = { red: 0, yellow: 0 };
+      for (j = 0; j < 7; j++) {
+        var col = this.grid[seven.spots[j]];
+        if (col) m[col]++;
+      }
+      ['red', 'yellow'].forEach(function (c) {
+        var other = c === 'red' ? 'yellow' : 'red';
+        if (m[other] === 0) {
+          out[c].sevens++;
+          if (m[c] >= 2) out[c].sevensClose++;
+        }
+      });
     }
     return out;
   };
