@@ -163,9 +163,9 @@
 
   // Pick a move for the computer and explain why.
   //  skill 1 (easy):   random column - same as the original Python version
-  //  skill 2 (medium): win if it can, block if it must, avoid handing over a win, otherwise the middle column, else random
+  //  skill 2 (medium): win if it can, block if it must, set up a fork, avoid handing over a win, otherwise the middle column, else random
   // Returns { col, reason, text } where reason is one of:
-  //  'win' | 'block' | 'center' | 'random' | 'forced'
+  //  'win' | 'block' | 'fork-line' | 'fork' | 'center' | 'random' | 'forced'
   Connect4.prototype.pickMove = function (skill, rand) {
     rand = rand || Math.random;
     var cols = this.availableCols();
@@ -185,6 +185,15 @@
     }
     for (i = 0; i < cols.length; i++) {
       if (this.wouldWin(cols[i], them)) return { col: cols[i], reason: 'block', text: 'Moving here to block your Connect Four.' };
+    }
+
+    // a fork: a move that leaves two different columns where we win next, while the opponent has no win of their own
+    var fork = this.findFork(me, them, cols, rand);
+    if (fork) {
+      var t = fork.threats.join(' and ');
+      return fork.straight
+        ? { col: fork.col, reason: 'fork-line', text: 'Forcing win: straight line fork (threatens ' + t + ', and you can only block one).' }
+        : { col: fork.col, reason: 'fork', text: 'Forcing win: double threat (threatens ' + t + ', and you can only block one).' };
     }
 
     // don't play directly under a spot the opponent could win on
@@ -219,6 +228,40 @@
     }
     return { col: pick, reason: reason, text: text };
   };
+
+  // Find a move after which `me` threatens to win in two different columns and `them` cannot win at once.
+  // Returns { col, threats: [spots], straight } or null. `straight` means the new checker and both winning
+  // spots lie on one straight line (an open three, e.g. c1 d1 e1 with b1 and f1 both empty).
+  Connect4.prototype.findFork = function (me, them, cols, rand) {
+    var self = this;
+    var found = [];
+    cols.forEach(function (col) {
+      var spot = col + (self.heights[col] + 1);
+      self.grid[spot] = me;
+      self.heights[col] += 1;
+      var threats = [], theyWin = false;
+      COLS.forEach(function (c2) {
+        if (self.heights[c2] >= ROWS) return;
+        if (self.wouldWin(c2, me)) threats.push(c2 + (self.heights[c2] + 1));
+        if (self.wouldWin(c2, them)) theyWin = true;
+      });
+      self.heights[col] -= 1;
+      delete self.grid[spot];
+      if (!theyWin && threats.length >= 2) found.push({ col: col, threats: threats, straight: collinear(spot, threats) });
+    });
+    if (!found.length) return null;
+    var dist = { a: 3, b: 2, c: 1, d: 0, e: 1, f: 2, g: 3 };
+    var best = Math.min.apply(null, found.map(function (f) { return dist[f.col]; }));
+    var closest = found.filter(function (f) { return dist[f.col] === best; });
+    return closest[Math.floor((rand || Math.random)() * closest.length)];
+  };
+
+  // do the spot and every threat spot lie on one row or one diagonal?
+  function collinear(spot, threats) {
+    var pts = [spot].concat(threats).map(function (x) { return [COLS.indexOf(x[0]), parseInt(x.slice(1), 10)]; });
+    var same = function (f) { return pts.every(function (p) { return f(p) === f(pts[0]); }); };
+    return same(function (p) { return p[1]; }) || same(function (p) { return p[0] - p[1]; }) || same(function (p) { return p[0] + p[1]; });
+  }
 
   Connect4.prototype.pickCol = function (skill, rand) {
     var move = this.pickMove(skill, rand);

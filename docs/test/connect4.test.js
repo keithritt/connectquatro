@@ -87,5 +87,35 @@ assert.strictEqual(Connect4.parse('R-a1-b1-a2-b2-a3-b3-a4').status, 'win');
 assert.strictEqual(Connect4.parse('R-a1-b1-a2-b2-a3-b3-a4-c1'), null); // nothing after a win
 // round trip over random games
 for (let n = 0; n < 200; n++) { g = new Connect4({ firstMove: n % 2 ? 'yellow' : 'red' }); while (!g.gameOver) g.dropChecker(g.pickCol(1, rand)); const g2 = Connect4.parse(g.code()); assert.ok(g2); assert.deepStrictEqual(g2.grid, g.grid); assert.strictEqual(g2.status, g.status); }
+// forks: yellow d1 e1 vs red d2 d3 - c1 or f1 makes an open three on the bottom row
+g = Connect4.parse('Y-d1-d2-e1-d3'); assert.strictEqual(g.currentTurn, 'yellow');
+for (const r of [0.01, 0.5, 0.99]) {
+  mv = g.pickMove(2, () => r);
+  assert.ok(['c', 'f'].includes(mv.col), mv.col); assert.strictEqual(mv.reason, 'fork-line');
+  assert.ok(/^Forcing win: straight line fork/.test(mv.text), mv.text);
+}
+mv = g.pickMove(2, () => 0.01); assert.strictEqual(mv.col, 'c'); assert.ok(/b1 and f1/.test(mv.text), mv.text); // c is closer to the center than f; the two open ends are named
+// a win or a block still comes first
+g = Connect4.parse('R-a1-b1-a2-b2-a3'); mv = g.pickMove(2); assert.strictEqual(mv.reason, 'block'); // yellow must stop a4
+// property: every fork the computer plays really leaves two winning columns and no immediate win for the opponent
+let forks = 0, lines = 0;
+for (let n = 0; n < 3000; n++) {
+  g = new Connect4({ firstMove: n % 2 ? 'yellow' : 'red' });
+  const plies = Math.floor(rand() * 28);
+  for (let i = 0; i < plies && !g.gameOver; i++) g.dropChecker(g.pickCol(1, rand));
+  if (g.gameOver) continue;
+  mv = g.pickMove(2, rand);
+  if (!mv.reason.startsWith('fork')) continue;
+  forks++; if (mv.reason === 'fork-line') lines++;
+  const me = g.currentTurn, them = me === 'red' ? 'yellow' : 'red';
+  assert.ok(!g.availableCols().some(c => g.wouldWin(c, me)), 'a win should have been taken first');
+  assert.ok(!g.availableCols().some(c => g.wouldWin(c, them)), 'a block should have come first');
+  g.dropChecker(mv.col);   // now it is the opponent's move: they must have no win, and we must have two
+  const mine = ['a','b','c','d','e','f','g'].filter(c => { g.currentTurn = me; const w = g.wouldWin(c, me); return w; });
+  g.currentTurn = them;
+  assert.ok(mine.length >= 2, 'fork needs two winning columns'); assert.ok(!g.availableCols().some(c => g.wouldWin(c, them)));
+}
+assert.ok(forks > 20 && lines > 0, 'expected to see forks in random play: ' + forks + '/' + lines);
+console.log('forks seen in random positions:', forks, '(straight line:', lines + ')');
 console.log('all tests passed');
 
