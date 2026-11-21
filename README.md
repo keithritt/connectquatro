@@ -54,6 +54,10 @@ node docs/test/solver.test.js
   Mistake, Blunder, Missed win ...) and shows every option as "Win in 3", "Loss in 2", "Draw" or an
   estimate when the position is too open to solve in 3.5 s. *Analyze this position* does the same
   for the side to move, so you can study any link. Ratings also appear as badges in the move log.
+- **Zugzwang:** the stats list each color's *winning squares* (with odd/even row and how many squares
+  must fill first). With 22 or fewer squares left, an exact solve says whether someone wins by zugzwang
+  (the loser is finally forced to play right under the winning square). On Medium, in that late stage,
+  the computer takes a zugzwang win when it has one, and avoids a move that would lose to one.
 - Undo, a running score, and the game in progress are saved in the browser.
 
 ## Django version

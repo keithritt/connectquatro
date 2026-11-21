@@ -87,12 +87,15 @@
             <tr><th scope="row" class="fw-normal ps-3">with 1 checker</th><td class="text-end" id="st-red-c1"></td><td class="text-end" id="st-yellow-c1"></td></tr>
             <tr><th scope="row" class="fw-normal ps-3">with 2 checkers</th><td class="text-end" id="st-red-c2"></td><td class="text-end" id="st-yellow-c2"></td></tr>
             <tr><th scope="row" class="fw-normal ps-3">with 3 checkers</th><td class="text-end" id="st-red-c3"></td><td class="text-end" id="st-yellow-c3"></td></tr>
+            <tr><th scope="row" class="fw-normal">Winning squares</th><td class="text-end small" id="st-red-threats"></td><td class="text-end small" id="st-yellow-threats"></td></tr>
             <tr><th scope="row" class="fw-normal">Sevens open <span class="text-body-secondary">/ 24</span></th><td class="text-end fw-semibold" id="st-red-sevens"></td><td class="text-end fw-semibold" id="st-yellow-sevens"></td></tr>
             <tr><th scope="row" class="fw-normal ps-3">with 2+ checkers</th><td class="text-end" id="st-red-sevens-close"></td><td class="text-end" id="st-yellow-sevens-close"></td></tr>
           </tbody>
         </table>
+        <div id="st-zug" class="small mb-2" role="status" aria-live="polite"></div>
         <p class="small text-body-secondary mb-1">A line is a possible four in a row. It stays open for a color until the other color puts a checker in it.</p>
         <p class="small text-body-secondary mb-0">A seven is a row of four plus a diagonal of four going down from one end of it (or its mirror image). They share an empty corner spot, so whoever fills the corner makes two threats at once. A seven stays open while that corner is empty and the other color has no checker in any of its 7 spots.</p>
+        <p class="small text-body-secondary mb-0 mt-1">A winning square is an empty spot that would complete four for that color. Even/odd is its row. "waits 1" means one square under it still has to fill first. When the only moves left put a checker right under the other side's winning square, that side is in zugzwang. The first player usually profits from odd-row squares, the second player from even-row ones.</p>
       </div>
     </div>
 

@@ -342,6 +342,31 @@
     return out;
   };
 
+  // Winning squares for each colour: empty spots that would complete a line of four for it.
+  // Each: { spot, row, parity: 'odd'|'even', playable: bool, below: empty squares under it that must fill first }
+  Connect4.prototype.threats = function () {
+    var out = { red: [], yellow: [] }, seen = { red: {}, yellow: {} };
+    for (var i = 0; i < LINES.length; i++) {
+      var line = LINES[i], n = { red: 0, yellow: 0 }, empty = null, empties = 0;
+      for (var j = 0; j < 4; j++) {
+        var c = this.grid[line[j]];
+        if (c) n[c]++; else { empty = line[j]; empties++; }
+      }
+      if (empties !== 1) continue;
+      ['red', 'yellow'].forEach(function (color) {
+        if (n[color] === 3 && !seen[color][empty]) {
+          seen[color][empty] = true;
+          var col = empty[0], row = parseInt(empty.slice(1), 10), h = this.heights[col];
+          out[color].push({ spot: empty, row: row, parity: row % 2 ? 'odd' : 'even', playable: row === h + 1, below: row - h - 1 });
+        }
+      }, this);
+    }
+    ['red', 'yellow'].forEach(function (color) {
+      out[color].sort(function (a, b) { return a.spot < b.spot ? -1 : 1; });
+    });
+    return out;
+  };
+
   // History string in the original format: first mover's initial, then spots, e.g. "R-d1-d2-e1"
   Connect4.prototype.getHistory = function () {
     if (!this.history.length) return '';

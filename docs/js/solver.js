@@ -31,7 +31,7 @@ function createC4Solver() {
   function rnd() { seed = seed ^ (seed << 13); seed = seed ^ (seed >>> 17); seed = seed ^ (seed << 5); return seed | 0; }
   var z1 = new Int32Array(N * 2), z2 = new Int32Array(N * 2), i, j;
   for (i = 0; i < N * 2; i++) { z1[i] = rnd(); z2[i] = rnd(); }
-  var TT_SIZE = 1 << 21, TT_MASK = TT_SIZE - 1;
+  var TT_SIZE = 1 << 20, TT_MASK = TT_SIZE - 1;
   var tk1 = new Int32Array(TT_SIZE), tk2 = new Int32Array(TT_SIZE);
   var tScore = new Int16Array(TT_SIZE), tDepth = new Int8Array(TT_SIZE);
   var tFlag = new Int8Array(TT_SIZE), tMove = new Int8Array(TT_SIZE);   // flag: 1 exact, 2 lower bound, 3 upper bound
@@ -246,7 +246,93 @@ function createC4Solver() {
     return { cols: out, best: best, depth: timedOut ? depth - 1 : depth, empties: empties, ms: Date.now() - t0 };
   }
 
-  return { think: think, analyze: analyze };
+  // ---- zugzwang ----
+  // A win "by zugzwang" is one that ends on a square that could not be played yet, because the loser is finally
+  // forced to play directly underneath it (every other move is worse or gone).
+
+  // Play the best line out for both sides from `moves` (optionally forcing the first move) and report how it ends.
+  function principalLine(moves, ms, firstCol) {
+    var seq = moves.slice(), line = [], t0 = Date.now(), c, p, row, win;
+    if (firstCol !== undefined && firstCol !== null) {
+      cells.fill(0); hts.fill(0); n = 0; h1 = 0; h2 = 0;
+      for (i = 0; i < seq.length; i++) put(seq[i], (i % 2) + 1);
+      p = (n % 2) + 1; row = hts[firstCol]; win = wins(firstCol, row, p);
+      line.push({ col: firstCol, row: row + 1, player: p, win: win });
+      seq.push(firstCol);
+      if (win) return line;
+    }
+    while (seq.length < N) {
+      var left = ms - (Date.now() - t0);
+      if (left < 30) return null;
+      var r = think(seq, left);
+      if (!r.proven || r.col < 0 || r.theory) return null;
+      p = (seq.length % 2) + 1; c = r.col; row = hts[c];            // think() leaves the board at `seq`
+      win = wins(c, row, p);
+      line.push({ col: c, row: row + 1, player: p, win: win });
+      seq.push(c);
+      if (win) break;
+    }
+    return line;
+  }
+
+  // does this line end by zugzwang? startHts: column heights before the line began
+  function classifyLine(line, startHts) {
+    var last = line && line[line.length - 1];
+    if (!last || !last.win) return { zug: false };
+    var prev = line[line.length - 2];
+    var zug = !!prev && prev.col === last.col && prev.row === last.row - 1 && startHts[last.col] < last.row - 1;
+    return { zug: zug, spot: 'abcdefg'[last.col] + last.row, winnerPlayer: last.player, plies: line.length, spots: line.map(function (x) { return 'abcdefg'[x.col] + x.row; }) };
+  }
+  function heightsOf(moves) { var h = [0, 0, 0, 0, 0, 0, 0]; for (var k = 0; k < moves.length; k++) h[moves[k]]++; return h; }
+
+  // Solve the position (if it can be solved in time) and say whether the result is a zugzwang win.
+  // Returns { solved, outcome: 'win'|'loss'|'draw' (for the player to move), zugzwang, spot, plies, spots }
+  function zugzwangScan(moves, timeMs) {
+    var t0 = Date.now();
+    var r = think(moves, timeMs * 0.5);
+    if (!r.proven || r.theory) return { solved: false, empties: N - moves.length };
+    if (r.outcome === 'draw') return { solved: true, outcome: 'draw', zugzwang: false };
+    var line = principalLine(moves, Math.max(100, timeMs - (Date.now() - t0)));
+    var cl = classifyLine(line, heightsOf(moves));
+    var res = { solved: true, outcome: r.outcome, zugzwang: cl.zug, plies: r.plies };
+    if (cl.spot) { res.spot = cl.spot; res.spots = cl.spots; }
+    return res;
+  }
+
+  // For the computer's turn. `defCol` is the column it would normally play.
+  // Returns { kind: 'take', col, spot, plies } if some move wins by zugzwang,
+  //         { kind: 'defend', col, avoided, spot } if defCol would lose by zugzwang and another move doesn't,
+  //         or null (nothing zugzwang-related to do, or not solvable in time).
+  function zugzwangMove(moves, timeMs, defCol) {
+    var t0 = Date.now(), startHts = heightsOf(moves), k, e, cl, line;
+    var a = analyze(moves, timeMs * 0.5);
+    var rest = function () { return Math.max(100, timeMs - (Date.now() - t0)); };
+    var bestTake = null;
+    for (k = 0; k < a.cols.length; k++) {
+      e = a.cols[k];
+      if (!(e.proven && e.outcome === 'win') || e.plies <= 1) continue;
+      line = principalLine(moves, rest() / 2, e.col);
+      cl = classifyLine(line, startHts);
+      if (cl.zug && (!bestTake || cl.plies < bestTake.plies)) bestTake = { kind: 'take', col: e.col, spot: cl.spot, plies: e.plies, spots: cl.spots };
+    }
+    if (bestTake) return bestTake;
+    if (defCol === undefined || defCol === null) return null;
+    for (k = 0; k < a.cols.length; k++) {
+      e = a.cols[k];
+      if (e.col !== defCol || !(e.proven && e.outcome === 'loss')) continue;
+      line = principalLine(moves, rest(), defCol);
+      cl = classifyLine(line, startHts);
+      if (!cl.zug) return null;
+      var alts = a.cols.filter(function (x) { return x.col !== defCol && !(x.proven && x.outcome === 'loss'); });
+      if (!alts.length) return null;
+      var pick = alts[0];
+      for (var m = 1; m < alts.length; m++) if (alts[m].score > pick.score) pick = alts[m];
+      return { kind: 'defend', col: pick.col, avoided: defCol, spot: cl.spot, plies: e.plies, spots: cl.spots };
+    }
+    return null;
+  }
+
+  return { think: think, analyze: analyze, zugzwangScan: zugzwangScan, zugzwangMove: zugzwangMove };
 }
 
 if (typeof module !== 'undefined' && module.exports) module.exports = createC4Solver;

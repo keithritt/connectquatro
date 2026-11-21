@@ -141,5 +141,11 @@ for (let n = 0; n < 3000; n++) {
 assert.ok(prevents > 5, 'expected some fork preventions: ' + prevents);
 console.log('fork preventions seen:', prevents);
 console.log('forks seen in random positions:', forks, '(straight line:', lines + ')');
+// threats: winning squares per colour, with parity and how far they are from being playable
+g = Connect4.parse('Y-d1-e1-d2-e2-d3-d4-d5-e3-e4-g1-d6-e5-g2-a1-b1-b2-e6-b3-c1-c2-c3-b4-b5-b6-g3-g4-g5-g6-a2-a3-a4-a5-a6');
+let th = g.threats();
+assert.deepStrictEqual(th.red.map(t => [t.spot, t.parity, t.playable, t.below]), [['c5', 'odd', false, 1], ['f2', 'even', false, 1]]);
+assert.deepStrictEqual(th.yellow.map(t => [t.spot, t.parity, t.playable, t.below]), [['c4', 'even', true, 0], ['f3', 'odd', false, 2]]);
+th = new Connect4().threats(); assert.strictEqual(th.red.length + th.yellow.length, 0);
 console.log('all tests passed');
 

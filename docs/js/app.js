@@ -10,6 +10,8 @@
   var HUMAN = 'red';
   var CPU = 'yellow';
   var CPU_DELAY = 550;
+  var ZUG_EMPTIES = 22;    // zugzwang look-ahead only runs when this few squares are left (it needs a full solve)
+  var ZUG_MS = 1500;
   var ANALYZE_MS = 3500;   // time limit for rating a move / analyzing a position
   var PERFECT_MS = 4000;   // time limit for one move on the Perfect level
   var STORE_KEY = 'connectquatro';
@@ -35,6 +37,7 @@
   var reasons = [];   // reasons[i] explains game.history[i]; null for the human's moves
   var thinkId = 0;       // identifies the search whose answer we still want
   var worker = null;     // Web Worker running the Perfect solver
+  var zugWorker = null, zugId = 0, zugCode = null;   // third worker: the zugzwang read-out in the stats
   var analysisWorker = null;   // a second one for move ratings, so rating never delays the computer
   var analysisId = 0;
   var autoRate = saved.rate !== false;
@@ -143,7 +146,18 @@
     renderMode();
   }
 
+  function threatsHtml(list) {
+    if (!list.length) return '<span class="text-body-secondary">none</span>';
+    return list.map(function (t) {
+      return '<span class="text-nowrap"><strong>' + t.spot + '</strong> ' + t.parity + (t.playable ? ', playable' : ', waits ' + t.below) + '</span>';
+    }).join('<br>');
+  }
+
   function renderStats() {
+    var th = game.threats();
+    $('st-red-threats').innerHTML = threatsHtml(th.red);
+    $('st-yellow-threats').innerHTML = threatsHtml(th.yellow);
+    scheduleZugScan();
     var st = game.stats();
     $('st-left').textContent = st.movesLeft;
     ['red', 'yellow'].forEach(function (c) {
@@ -267,6 +281,16 @@
       });
       return;
     }
+    if (skill === 2 && 42 - game.history.length <= ZUG_EMPTIES) {
+      // late game: look for a zugzwang win to take, or one to avoid, before the usual rules
+      var usual = game.pickMove(2);
+      thinkZug(COLS.indexOf(usual.col), function (z) {
+        busy = false;
+        if (z) play(COLS[z.col], describeZug(z));
+        else play(usual.col, usual.text);
+      });
+      return;
+    }
     cpuTimer = setTimeout(function () {
       cpuTimer = null;
       busy = false;
@@ -281,7 +305,11 @@
       var src = 'var createC4Solver = ' + createC4Solver.toString() + ';\n' +
         'var solver = createC4Solver();\n' +
         'onmessage = function (e) { var d = e.data;\n' +
-        '  postMessage({ id: d.id, result: d.type === "analyze" ? solver.analyze(d.moves, d.ms) : solver.think(d.moves, d.ms) }); };';
+        '  var res = d.type === "analyze" ? solver.analyze(d.moves, d.ms)\n' +
+        '    : d.type === "zugscan" ? solver.zugzwangScan(d.moves, d.ms)\n' +
+        '    : d.type === "zugmove" ? solver.zugzwangMove(d.moves, d.ms, d.def)\n' +
+        '    : solver.think(d.moves, d.ms);\n' +
+        '  postMessage({ id: d.id, result: res }); };';
       return new Worker(URL.createObjectURL(new Blob([src], { type: 'application/javascript' })));
     } catch (e) { return null; }
   }
@@ -422,6 +450,75 @@
         ' (' + resultText(b) + (b.proven ? '' : ', estimate') + ').';
       renderAnalysisTable(a, -1);
     });
+  }
+
+  // ---------- zugzwang ----------
+  function whoName(color) { return twoPlayer() ? cap(color) : color === HUMAN ? 'You' : 'The computer'; }
+
+  function scheduleZugScan() {
+    var el = $('st-zug');
+    var code = game.code();
+    if (code === zugCode) return;
+    zugCode = code;
+    zugId++;
+    if (zugWorker) { zugWorker.terminate(); zugWorker = null; }
+    var empties = 42 - game.history.length;
+    if (game.gameOver) { el.textContent = ''; return; }
+    if (empties > ZUG_EMPTIES) {
+      el.innerHTML = '<span class="text-body-secondary">Zugzwang check: runs once ' + ZUG_EMPTIES + ' or fewer squares are left (' + empties + ' now).</span>';
+      return;
+    }
+    el.innerHTML = '<span class="text-body-secondary">Zugzwang check: solving…</span>';
+    var id = zugId, mover = game.currentTurn, other = mover === 'red' ? 'yellow' : 'red';
+    var moves = historyCols(game.history);
+    function show(r) {
+      if (id !== zugId) return;
+      var html;
+      if (!r || !r.solved) html = '<span class="text-body-secondary">Zugzwang check: too open to solve in time.</span>';
+      else if (r.outcome === 'draw') html = '<strong>Zugzwang check:</strong> best play from here is a draw.';
+      else {
+        var winner = r.outcome === 'win' ? mover : other;
+        var moveNo = r.outcome === 'win' ? (r.plies + 1) / 2 : r.plies / 2;
+        html = r.zugzwang
+          ? '<strong>Zugzwang:</strong> ' + cap(winner) + ' wins by it. The other side runs out of safe moves and must play under <strong>' + r.spot + '</strong> (' + cap(winner) + ' wins on move ' + moveNo + ' from now).'
+          : '<strong>Zugzwang check:</strong> ' + cap(winner) + ' wins by force (move ' + moveNo + '), but not by zugzwang.';
+      }
+      el.innerHTML = html;
+    }
+    var w = makeWorker();
+    if (!w) { setTimeout(function () { if (id === zugId) { mainSolver = mainSolver || createC4Solver(); show(mainSolver.zugzwangScan(moves, 800)); } }, 30); return; }
+    zugWorker = w;
+    w.onmessage = function (e) { if (e.data.id === id) show(e.data.result); };
+    w.onerror = function () { if (id === zugId) show(null); };
+    w.postMessage({ id: id, type: 'zugscan', moves: moves, ms: ZUG_MS });
+  }
+
+  // The computer's zugzwang check: take a win by zugzwang, or avoid a move that loses to one. done(null) = nothing to do.
+  function thinkZug(defCol, done) {
+    var id = ++thinkId;
+    var moves = historyCols(game.history);
+    function onMain() {
+      setTimeout(function () {
+        if (id !== thinkId) return;
+        mainSolver = mainSolver || createC4Solver();
+        done(mainSolver.zugzwangMove(moves, 700, defCol));
+      }, 30);
+    }
+    var w = getWorker();
+    if (!w) return onMain();
+    w.onmessage = function (e) { if (e.data.id === id) done(e.data.result); };
+    w.onerror = function () { if (worker) { worker.terminate(); worker = null; } onMain(); };
+    w.postMessage({ id: id, type: 'zugmove', moves: moves, ms: ZUG_MS, def: defCol });
+  }
+
+  function describeZug(z) {
+    var next = z.spots.length > 1 ? z.spots[z.spots.length - 2] : null;
+    if (z.kind === 'take') {
+      return 'Forcing win by zugzwang: you will run out of safe moves and have to play ' + (next || 'under my square') +
+        ', right under my winning square ' + z.spot + '. I win on move ' + (z.plies + 1) / 2 + ' from now.';
+    }
+    return 'Defending against a zugzwang: if I played ' + COLS[z.avoided] + ' you could squeeze me into playing under ' + z.spot +
+      ' and win. Playing ' + COLS[z.col] + ' instead.';
   }
 
   // say what the solver proved (or didn't)
