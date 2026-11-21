@@ -163,9 +163,9 @@
 
   // Pick a move for the computer and explain why.
   //  skill 1 (easy):   random column - same as the original Python version
-  //  skill 2 (medium): win if it can, block if it must, avoid handing over a win, otherwise take the middle column
+  //  skill 2 (medium): win if it can, block if it must, avoid handing over a win, otherwise the middle column, else random
   // Returns { col, reason, text } where reason is one of:
-  //  'win' | 'block' | 'center' | 'near-center' | 'random' (Easy) | 'forced'
+  //  'win' | 'block' | 'center' | 'random' | 'forced'
   Connect4.prototype.pickMove = function (skill, rand) {
     rand = rand || Math.random;
     var cols = this.availableCols();
@@ -205,19 +205,14 @@
       return { col: forced, reason: 'forced', text: 'Every column sets you up to win, so this is the least bad choice (picked at random).' };
     }
 
-    // nothing obvious: take the middle column, or the closest safe column to it
-    // (distance 1: c or e, 2: b or f, 3: a or g; ties are broken at random)
-    var dist = { a: 3, b: 2, c: 1, d: 0, e: 1, f: 2, g: 3 };
-    var best = Math.min.apply(null, safe.map(function (c) { return dist[c]; }));
-    var closest = safe.filter(function (c) { return dist[c] === best; });
-    var pick = pickRandom(closest);
-
-    var reason, text;
-    if (pick === 'd') { reason = 'center'; text = 'Nothing urgent, so taking the center column.'; }
-    else {
-      reason = 'near-center';
+    // nothing obvious: take the middle column; if it is full or unsafe, pick at random among the safe columns
+    var pick, reason, text;
+    if (safe.indexOf('d') !== -1) {
+      pick = 'd'; reason = 'center'; text = 'Nothing urgent, so taking the center column.';
+    } else {
+      pick = pickRandom(safe); reason = 'random';
       text = 'Nothing urgent, and the center column ' + (this.heights.d >= ROWS ? 'is full' : 'is not safe to play') +
-        ', so taking the closest safe column to it.';
+        ', so this is a random pick.';
     }
     if (skipped.length) {
       text += ' (Avoided ' + skipped.join(', ') + ': filling the spot below would let you win there.)';

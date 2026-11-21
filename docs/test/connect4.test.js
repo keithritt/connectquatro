@@ -65,9 +65,11 @@ assert.strictEqual(mv.col, 'a'); assert.strictEqual(mv.reason, 'block'); assert.
 // nothing obvious -> middle column, whatever the dice say
 g = new Connect4();
 for (const r of [0.01, 0.5, 0.99]) { mv = g.pickMove(2, () => r); assert.strictEqual(mv.col, 'd'); assert.strictEqual(mv.reason, 'center'); }
-// middle column full -> closest safe column (c or e), never something further out
-g = play(['d','d','d','d','d','d']); assert.strictEqual(g.currentTurn, 'red'); assert.strictEqual(g.heights.d, 6);
-for (const r of [0.01, 0.99]) { mv = g.pickMove(2, () => r); assert.ok(['c','e'].includes(mv.col), mv.col); assert.strictEqual(mv.reason, 'near-center'); assert.ok(/is full/.test(mv.text)); }
+// middle column full -> random pick among the other columns (the dice decide)
+g = play(['d','d','d','d','d','d']); assert.strictEqual(g.heights.d, 6);
+const picked = new Set();
+for (const r of [0.01, 0.2, 0.4, 0.6, 0.8, 0.99]) { mv = g.pickMove(2, () => r); picked.add(mv.col); assert.notStrictEqual(mv.col, 'd'); assert.strictEqual(mv.reason, 'random'); assert.ok(/is full/.test(mv.text) && /random/.test(mv.text)); }
+assert.ok(picked.size > 1, 'random pick should vary');
 mv = g.pickMove(1, () => 0.1); assert.strictEqual(mv.reason, 'random'); assert.ok(/Easy/.test(mv.text));
 // avoiding a setup: red has b2 c2 d2, so yellow must not play a1 or e1 (that lets red win on a2/e2)
 g = play(['c','b','b','d','c','g','d']); assert.strictEqual(g.currentTurn, 'yellow');
