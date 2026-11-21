@@ -78,5 +78,14 @@ for (const r of [0.01, 0.2, 0.4, 0.6, 0.8, 0.99]) {
   assert.ok(!['a','e'].includes(mv.col), 'must avoid a and e, got ' + mv.col);
   assert.ok(/Avoided a2, e2/.test(mv.text), mv.text);
 }
+// position codes
+g = Connect4.parse('R-d1-d2-e1'); assert.ok(g); assert.strictEqual(g.code(), 'R-d1-d2-e1'); assert.strictEqual(g.currentTurn, 'yellow');
+assert.strictEqual(Connect4.parse('https://example.com/play/#y-D1-d2').code(), 'Y-d1-d2'); // a pasted link, any case
+assert.strictEqual(new Connect4().code(), 'R'); assert.strictEqual(new Connect4({ firstMove: 'yellow' }).code(), 'Y'); assert.strictEqual(Connect4.parse('Y').firstMove, 'yellow');
+for (const bad of ['', 'X-d1', 'R-d2', 'R-d1-d1', 'R-h1', 'R-d1-', 'R-a1-b1-a2-b2-a3-b3-a4-a5', 'garbage']) assert.strictEqual(Connect4.parse(bad), null, bad);
+assert.strictEqual(Connect4.parse('R-a1-b1-a2-b2-a3-b3-a4').status, 'win');
+assert.strictEqual(Connect4.parse('R-a1-b1-a2-b2-a3-b3-a4-c1'), null); // nothing after a win
+// round trip over random games
+for (let n = 0; n < 200; n++) { g = new Connect4({ firstMove: n % 2 ? 'yellow' : 'red' }); while (!g.gameOver) g.dropChecker(g.pickCol(1, rand)); const g2 = Connect4.parse(g.code()); assert.ok(g2); assert.deepStrictEqual(g2.grid, g.grid); assert.strictEqual(g2.status, g.status); }
 console.log('all tests passed');
 

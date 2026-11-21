@@ -31,6 +31,7 @@
   var reasons = [];   // reasons[i] explains game.history[i]; null for the human's moves
   var busy = false;      // true while the computer is "thinking"
   var cpuTimer = null;
+  var counted = false;   // has the current game's result been added to the score?
 
   // ---------- storage (optional - the page works without it) ----------
   function load() {
@@ -117,6 +118,7 @@
     renderStatus();
     renderStats();
     renderLog();
+    syncLink();
     scoreEl.textContent = score.w + ' W · ' + score.l + ' L · ' + score.t + ' T';
   }
 
@@ -151,6 +153,31 @@
     });
     logEl.innerHTML = html;
     $('why-text').textContent = lastCpu || 'It will explain each of its moves here.';
+  }
+
+  // ---------- shareable position link ----------
+  // The position lives in the URL hash as a plain code, e.g. #R-d1-d2-e1
+  function syncLink() {
+    var hash = '#' + game.code();
+    if (location.hash !== hash) {
+      try { location.replace(hash); } catch (e) { /* some frames block it - the field below still works */ }
+    }
+    $('link').value = location.href.replace(/#.*$/, '') + hash;
+  }
+
+  function loadFromText(text) {
+    var g = Connect4.parse(text);
+    var msg = $('load-msg');
+    if (!g) {
+      msg.className = 'small mt-1 text-danger';
+      msg.textContent = "That isn't a legal position. Use a code like R-d1-d2-e1 (first mover R or Y, then each spot in order).";
+      return false;
+    }
+    msg.className = 'small mt-1 text-success';
+    msg.textContent = 'Loaded.';
+    $('first-' + (g.firstMove === CPU ? 'cpu' : 'you')).checked = true;
+    newGame(g.code());
+    return true;
   }
 
   function escapeHtml(t) {
@@ -201,6 +228,7 @@
   }
 
   function finish() {
+    counted = true;
     if (game.status === 'win' && game.winner === HUMAN) score.w++;
     else if (game.status === 'win') score.l++;
     else score.t++;
@@ -219,9 +247,10 @@
   function newGame(historyStr) {
     if (cpuTimer) { clearTimeout(cpuTimer); cpuTimer = null; }
     busy = false;
-    game = historyStr ? Connect4.fromHistory(historyStr) : new Connect4({ firstMove: firstChoice() });
+    game = (historyStr && Connect4.parse(historyStr)) || new Connect4({ firstMove: firstChoice() });
+    counted = false;
     reasons = [];
-    if (historyStr && Array.isArray(saved.reasons) && saved.reasons.length === game.history.length) reasons = saved.reasons.slice();
+    if (historyStr && historyStr === saved.history && Array.isArray(saved.reasons) && saved.reasons.length === game.history.length) reasons = saved.reasons.slice();
     else while (reasons.length < game.history.length) reasons.push(null);
     render();
     save();
@@ -232,6 +261,7 @@
     if (busy) return;
     var wasOver = game.gameOver;
     var status = game.status, winner = game.winner;
+    counted = false;
     // take back moves up to and including the human's last move
     var popped;
     do {
@@ -239,7 +269,7 @@
       game.undo();
     } while (popped !== HUMAN && game.history.length);
     reasons.length = game.history.length;
-    if (wasOver) { // un-count the finished game
+    if (wasOver && counted) { // un-count the finished game
       if (status === 'tie') score.t = Math.max(0, score.t - 1);
       else if (winner === HUMAN) score.w = Math.max(0, score.w - 1);
       else score.l = Math.max(0, score.l - 1);
@@ -292,9 +322,27 @@
   skillEl.addEventListener('change', save);
   document.querySelectorAll('input[name="first"]').forEach(function (r) { r.addEventListener('change', save); });
 
+  $('copy-link').addEventListener('click', function () {
+    var input = $('link');
+    input.select();
+    var done = function () { $('copy-link').textContent = 'Copied'; setTimeout(function () { $('copy-link').textContent = 'Copy link'; }, 1500); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(input.value).then(done, function () { /* selected - press copy */ });
+    }
+  });
+  $('load-btn').addEventListener('click', function () { if (loadFromText($('load').value)) $('load').value = ''; });
+  $('load').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('load-btn').click(); });
+  // the viewer edited the address bar (or followed another link): jump to that position
+  window.addEventListener('hashchange', function () {
+    var code = location.hash.slice(1);
+    if (code && code !== game.code() && Connect4.parse(code)) loadFromText(code);
+  });
+
   // ---------- start ----------
   if (saved.skill) skillEl.value = saved.skill;
   if (saved.first === CPU) $('first-cpu').checked = true;
   buildBoard();
-  newGame(saved.history && !Connect4.fromHistory(saved.history).gameOver ? saved.history : null);
+  var fromLink = location.hash.length > 1 && Connect4.parse(location.hash.slice(1));
+  if (fromLink) loadFromText(location.hash.slice(1));
+  else newGame(saved.history && !Connect4.fromHistory(saved.history).gameOver ? saved.history : null);
 })();

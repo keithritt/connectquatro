@@ -277,6 +277,27 @@
     return [this.firstMove === 'red' ? 'R' : 'Y'].concat(this.history).join('-');
   };
 
+  // Strictly parse a position code such as "R-d1-d2-e1" (first mover, then every spot in order).
+  // Returns a game, or null if the text isn't a legal sequence (bad spot, wrong height, full column, moves after a win).
+  Connect4.parse = function (str) {
+    str = String(str || '').trim().replace(/^.*#/, '');   // accept a whole link
+    var parts = str.split('-');
+    var first = parts.shift().toUpperCase();
+    if (first !== 'R' && first !== 'Y') return null;
+    var g = new Connect4({ firstMove: first === 'Y' ? 'yellow' : 'red' });
+    for (var i = 0; i < parts.length; i++) {
+      var spot = parts[i].toLowerCase();
+      if (!/^[a-g][1-6]$/.test(spot)) return null;
+      if (g.dropChecker(spot[0]) !== spot) return null;
+    }
+    return g;
+  };
+
+  // The code for a game, also when it has no moves yet: "R", "Y-d1", ...
+  Connect4.prototype.code = function () {
+    return this.getHistory() || (this.firstMove === 'yellow' ? 'Y' : 'R');
+  };
+
   Connect4.fromHistory = function (str) {
     if (!str) return new Connect4();
     var parts = String(str).split('-');

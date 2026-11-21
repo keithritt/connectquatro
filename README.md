@@ -35,6 +35,10 @@ node docs/test/connect4.test.js
   empty corner, so filling the corner makes a double threat).
 - The computer explains every move (victory, blocking your Connect Four, staying near the center,
   avoiding a setup, or random), shown under the board and in a running **Move log**.
+- **Shareable positions:** the URL hash always holds the current board (e.g. `#R-d1-e1-d2`: first
+  mover, then every spot in order). Copy the link from the *Share this position* card to send or
+  bookmark an exact scenario; opening it sets up that board with the same player to move. You can also
+  paste a link or code into *Load a position*.
 - Undo, a running score, and the game in progress are saved in the browser.
 
 ## Django version

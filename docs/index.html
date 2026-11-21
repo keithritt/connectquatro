@@ -89,6 +89,24 @@
       </div>
     </div>
 
+    <div class="card mt-3" id="share-card">
+      <div class="card-body">
+        <h2 class="h6 mb-2">Share this position</h2>
+        <label for="link" class="visually-hidden">Link to this position</label>
+        <div class="input-group">
+          <input id="link" type="text" class="form-control" readonly>
+          <button id="copy-link" type="button" class="btn btn-outline-primary">Copy link</button>
+        </div>
+        <p class="small text-body-secondary mt-2 mb-3">The link updates after every move. Opening it sets up exactly this board, with the same player to move.</p>
+        <label for="load" class="form-label small text-body-secondary mb-1">Load a position (paste a link or a code like R-d1-d2-e1)</label>
+        <div class="input-group">
+          <input id="load" type="text" class="form-control" autocomplete="off" autocapitalize="off" spellcheck="false">
+          <button id="load-btn" type="button" class="btn btn-outline-secondary">Load</button>
+        </div>
+        <div id="load-msg" class="small mt-1" role="status"></div>
+      </div>
+    </div>
+
     <div class="card mt-3">
       <div class="card-body">
         <div class="row g-3">
