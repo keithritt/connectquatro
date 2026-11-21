@@ -28,7 +28,7 @@ node docs/test/connect4.test.js
 - Tie detection works when the board fills up.
 - Either player can go first.
 - Two computer levels: **Easy** (random moves, like the original) and **Medium** (takes a win,
-  blocks yours, avoids setting you up, prefers the centre).
+  blocks yours, avoids setting you up, otherwise takes the middle column).
 - A **Game stats** panel for studying play: moves remaining, and for each color how many of the 69
   possible four-in-a-row lines are still open (with 1, 2 or 3 of that color's checkers already in them),
   plus how many "sevens" are still open (a row of four plus a diagonal of four from one end, sharing an

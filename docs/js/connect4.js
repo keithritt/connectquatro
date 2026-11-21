@@ -163,9 +163,9 @@
 
   // Pick a move for the computer and explain why.
   //  skill 1 (easy):   random column - same as the original Python version
-  //  skill 2 (medium): win if it can, block if it must, avoid handing over a win, favour the centre
+  //  skill 2 (medium): win if it can, block if it must, avoid handing over a win, otherwise take the middle column
   // Returns { col, reason, text } where reason is one of:
-  //  'win' | 'block' | 'center' | 'near-center' | 'random' | 'forced'
+  //  'win' | 'block' | 'center' | 'near-center' | 'random' (Easy) | 'forced'
   Connect4.prototype.pickMove = function (skill, rand) {
     rand = rand || Math.random;
     var cols = this.availableCols();
@@ -205,21 +205,20 @@
       return { col: forced, reason: 'forced', text: 'Every column sets you up to win, so this is the least bad choice (picked at random).' };
     }
 
-    // weight columns toward the centre
-    var weights = { a: 1, b: 2, c: 3, d: 4, e: 3, f: 2, g: 1 };
-    var total = 0;
-    safe.forEach(function (c) { total += weights[c]; });
-    var roll = rand() * total;
-    var pick = safe[safe.length - 1];
-    for (i = 0; i < safe.length; i++) {
-      roll -= weights[safe[i]];
-      if (roll < 0) { pick = safe[i]; break; }
-    }
+    // nothing obvious: take the middle column, or the closest safe column to it
+    // (distance 1: c or e, 2: b or f, 3: a or g; ties are broken at random)
+    var dist = { a: 3, b: 2, c: 1, d: 0, e: 1, f: 2, g: 3 };
+    var best = Math.min.apply(null, safe.map(function (c) { return dist[c]; }));
+    var closest = safe.filter(function (c) { return dist[c] === best; });
+    var pick = pickRandom(closest);
 
     var reason, text;
-    if (pick === 'd') { reason = 'center'; text = 'Taking the center column.'; }
-    else if (pick === 'c' || pick === 'e') { reason = 'near-center'; text = 'Staying near the center.'; }
-    else { reason = 'random'; text = 'No special reason, so this is a random pick.'; }
+    if (pick === 'd') { reason = 'center'; text = 'Nothing urgent, so taking the center column.'; }
+    else {
+      reason = 'near-center';
+      text = 'Nothing urgent, and the center column ' + (this.heights.d >= ROWS ? 'is full' : 'is not safe to play') +
+        ', so taking the closest safe column to it.';
+    }
     if (skipped.length) {
       text += ' (Avoided ' + skipped.join(', ') + ': filling the spot below would let you win there.)';
     }

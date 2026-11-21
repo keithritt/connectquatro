@@ -62,9 +62,12 @@ g = play(['a','b','a','b','a','b']); let mv = g.pickMove(2); // red to move, red
 assert.strictEqual(mv.col, 'a'); assert.strictEqual(mv.reason, 'win'); assert.ok(/victory/.test(mv.text));
 g = play(['a','b','a','b','a']); mv = g.pickMove(2); // yellow to move, red threatens a4
 assert.strictEqual(mv.col, 'a'); assert.strictEqual(mv.reason, 'block'); assert.ok(/block your Connect Four/.test(mv.text));
-g = new Connect4(); mv = g.pickMove(2, () => 0.99); assert.strictEqual(mv.reason, 'random'); // weighted pick lands on g
-mv = g.pickMove(2, () => 0.5); assert.strictEqual(mv.reason, 'center'); assert.strictEqual(mv.col, 'd');
-mv = g.pickMove(2, () => 0.3); assert.strictEqual(mv.reason, 'near-center');
+// nothing obvious -> middle column, whatever the dice say
+g = new Connect4();
+for (const r of [0.01, 0.5, 0.99]) { mv = g.pickMove(2, () => r); assert.strictEqual(mv.col, 'd'); assert.strictEqual(mv.reason, 'center'); }
+// middle column full -> closest safe column (c or e), never something further out
+g = play(['d','d','d','d','d','d']); assert.strictEqual(g.currentTurn, 'red'); assert.strictEqual(g.heights.d, 6);
+for (const r of [0.01, 0.99]) { mv = g.pickMove(2, () => r); assert.ok(['c','e'].includes(mv.col), mv.col); assert.strictEqual(mv.reason, 'near-center'); assert.ok(/is full/.test(mv.text)); }
 mv = g.pickMove(1, () => 0.1); assert.strictEqual(mv.reason, 'random'); assert.ok(/Easy/.test(mv.text));
 // avoiding a setup: red has b2 c2 d2, so yellow must not play a1 or e1 (that lets red win on a2/e2)
 g = play(['c','b','b','d','c','g','d']); assert.strictEqual(g.currentTurn, 'yellow');
