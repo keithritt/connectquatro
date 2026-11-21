@@ -9,6 +9,7 @@ The game now runs entirely in the browser — no server needed. It's a static si
 
 - `docs/index.html` – the page
 - `docs/js/connect4.js` – game engine (port of `web/classes/connect4.py`)
+- `docs/js/solver.js` – the Perfect level's search (negamax + alpha-beta + transposition table, run in a Web Worker)
 - `docs/js/app.js` – board UI, computer turns, undo, score
 - `docs/css/style.css` – board styles
 - `docs/img/` – checker images
@@ -20,6 +21,7 @@ Run the engine tests with Node:
 
 ```
 node docs/test/connect4.test.js
+node docs/test/solver.test.js
 ```
 
 ### Changes from the Python version
@@ -42,6 +44,12 @@ node docs/test/connect4.test.js
   mover, then every spot in order). Copy the link from the *Share this position* card to send or
   bookmark an exact scenario; opening it sets up that board with the same player to move. You can also
   paste a link or code into *Load a position*.
+- **Perfect level:** an exact search in the spirit of the usual negamax sample (center-first order,
+  alpha-beta, wins score higher the sooner they come), with a transposition table and iterative
+  deepening under a 4-second limit. When it can finish the game or find a forced win/loss, the move is
+  *proven* perfect and it says so ("forced win in 3 moves", "this position is lost, this move holds out
+  longest"). Early in the game too many moves remain to solve in a browser, so it reports a best guess
+  and how many moves ahead it looked. The first move is the center column, a known win for the first player.
 - Undo, a running score, and the game in progress are saved in the browser.
 
 ## Django version

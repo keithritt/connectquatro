@@ -1,0 +1,72 @@
+[
+{
+"moves": "adgagedgggafceacacccca",
+"outcome": "draw",
+"plies": 20
+},
+{
+"moves": "gcbfdcffdeefbcee",
+"outcome": "win",
+"plies": 1
+},
+{
+"moves": "edgfadgeeeggccfc",
+"outcome": "win",
+"plies": 3
+},
+{
+"moves": "cccgdfgabddcbgacc",
+"outcome": "loss",
+"plies": 4
+},
+{
+"moves": "cccfgafacbagbebdeaggggf",
+"outcome": "loss",
+"plies": 6
+},
+{
+"moves": "gdebbbdafeedaagaeg",
+"outcome": "loss",
+"plies": 2
+},
+{
+"moves": "ggggfcbfgcbcgdcd",
+"outcome": "loss",
+"plies": 18
+},
+{
+"moves": "affggegafefgaaaabbegc",
+"outcome": "win",
+"plies": 1
+},
+{
+"moves": "egbbgebaeafefacf",
+"outcome": "win",
+"plies": 1
+},
+{
+"moves": "gdfcgffggbfbaggaa",
+"outcome": "win",
+"plies": 1
+},
+{
+"moves": "gggbbaddacdbaaaedff",
+"outcome": "loss",
+"plies": 18
+},
+{
+"moves": "ecegfgeefbafeddcdaaacc",
+"outcome": "win",
+"plies": 17
+},
+{
+"moves": "eaaafgafccgfagbeca",
+"outcome": "win",
+"plies": 1
+},
+{
+"moves": "ffbgfcdcbggedgfffg",
+"outcome": "win",
+"plies": 17
+}
+]

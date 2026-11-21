@@ -10,6 +10,7 @@
   var HUMAN = 'red';
   var CPU = 'yellow';
   var CPU_DELAY = 550;
+  var PERFECT_MS = 4000;   // time limit for one move on the Perfect level
   var STORE_KEY = 'connectquatro';
 
   // short alias for document.getElementById (local to this file, so it won't clash with jQuery)
@@ -31,6 +32,9 @@
   var mode = saved.mode === 'two' ? 'two' : 'cpu';            // 'cpu' = play the computer, 'two' = two people
   var game;
   var reasons = [];   // reasons[i] explains game.history[i]; null for the human's moves
+  var thinkId = 0;       // identifies the search whose answer we still want
+  var worker = null;     // Web Worker running the Perfect solver
+  var mainSolver = null; // used only if workers aren't available
   var busy = false;      // true while the computer is "thinking"
   var cpuTimer = null;
   var counted = false;   // which score ('cpu' or 'two') this game's result was added to, or false
@@ -220,7 +224,7 @@
     } else if (game.currentTurn === HUMAN && !busy) {
       html = '<span class="dot red"></span>Your turn';
     } else {
-      html = '<span class="dot yellow"></span>Computer is thinking…';
+      html = '<span class="dot yellow"></span>Computer is thinking' + (skillEl.value === '3' ? ' (perfect play, up to ' + PERFECT_MS / 1000 + ' s)' : '') + '…';
     }
     statusEl.innerHTML = html;
 
@@ -246,12 +250,73 @@
   function cpuTurn() {
     busy = true;
     render();
+    var skill = parseInt(skillEl.value, 10);
+    if (skill === 3) {
+      thinkPerfect(function (res) {
+        busy = false;
+        play(COLS[res.col], describePerfect(res));
+      });
+      return;
+    }
     cpuTimer = setTimeout(function () {
       cpuTimer = null;
       busy = false;
-      var move = game.pickMove(parseInt(skillEl.value, 10));
+      var move = game.pickMove(skill);
       play(move.col, move.text);
     }, CPU_DELAY);
+  }
+
+  // ---------- the Perfect level: solver.js runs in a Web Worker so the page stays responsive ----------
+  function getWorker() {
+    if (worker) return worker;
+    try {
+      var src = 'var createC4Solver = ' + createC4Solver.toString() + ';\n' +
+        'var solver = createC4Solver();\n' +
+        'onmessage = function (e) { var d = e.data; postMessage({ id: d.id, result: solver.think(d.moves, d.ms) }); };';
+      worker = new Worker(URL.createObjectURL(new Blob([src], { type: 'application/javascript' })));
+    } catch (e) { worker = null; }
+    return worker;
+  }
+
+  function thinkPerfect(done) {
+    var id = ++thinkId;
+    var moves = game.history.map(function (spot) { return COLS.indexOf(spot[0]); });
+    function onMain() {   // fallback: shorter search on the page itself
+      setTimeout(function () {
+        if (id !== thinkId) return;
+        mainSolver = mainSolver || createC4Solver();
+        done(mainSolver.think(moves, 1500));
+      }, 30);
+    }
+    var w = getWorker();
+    if (!w) return onMain();
+    w.onmessage = function (e) { if (e.data.id === id) done(e.data.result); };
+    w.onerror = function () { if (worker) { worker.terminate(); worker = null; } onMain(); };
+    w.postMessage({ id: id, moves: moves, ms: PERFECT_MS });
+  }
+
+  function cancelThinking() {
+    thinkId++;                                   // ignore any answer still on its way
+    if (worker) { worker.terminate(); worker = null; }
+    if (cpuTimer) { clearTimeout(cpuTimer); cpuTimer = null; }
+  }
+
+  // say what the solver proved (or didn't)
+  function describePerfect(res) {
+    if (res.theory) return 'Perfect play: the center column is the known winning first move.';
+    if (res.outcome === 'win') {
+      var k = (res.plies + 1) / 2;   // how many of the computer's moves, counting this one
+      return k === 1 ? 'Moving here for victory.'
+        : 'Perfect play: forced win in ' + k + ' moves (this one included), however you answer.';
+    }
+    if (res.outcome === 'loss') {
+      var j = res.plies / 2;         // your replies until you win
+      return 'Perfect play: this position is lost against best play. This move holds out longest; you can win in ' +
+        j + (j === 1 ? ' move.' : ' moves.');
+    }
+    if (res.outcome === 'draw') return 'Perfect play: the best anyone can get from here is a draw.';
+    return 'Best guess, not proven: searched ' + res.depth + ' moves ahead in ' + (res.ms / 1000).toFixed(1) +
+      ' s. Too many moves are left to solve the game in the time limit.';
   }
 
   function finish() {
@@ -276,7 +341,7 @@
   }
 
   function newGame(historyStr) {
-    if (cpuTimer) { clearTimeout(cpuTimer); cpuTimer = null; }
+    cancelThinking();
     busy = false;
     game = (historyStr && Connect4.parse(historyStr)) || new Connect4({ firstMove: firstChoice() });
     counted = false;
@@ -362,7 +427,7 @@
   // switching opponent keeps the current position and just changes who controls yellow
   $('mode').addEventListener('change', function () {
     mode = $('mode').value === 'two' ? 'two' : 'cpu';
-    if (cpuTimer) { clearTimeout(cpuTimer); cpuTimer = null; }
+    cancelThinking();
     busy = false;
     render();
     save();
