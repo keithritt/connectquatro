@@ -69,6 +69,12 @@ let zm = solver.zugzwangMove(zmoves, 3000, 5);          // normally it would pla
 assert.ok(zm && zm.kind === 'take' && zm.col === 2 && zm.spot === 'f2', JSON.stringify(zm));
 // an immediate win is not a zugzwang
 zs = solver.zugzwangScan(cols('ababab'), 1000); assert.ok(zs.solved && zs.outcome === 'win' && !zs.zugzwang);
+// a quick tactical win (fork or forced block) is not zugzwang, and a slow squeeze is not taken over it
+const tact = C4.parse('Y-d1-d2-d3-d4-d5-g1-d6-e1-f1-f2-g2-g3-c1'); const tm = tact.history.map(x => x.charCodeAt(0) - 97);
+assert.strictEqual(solver.zugzwangScan(tm, 5000).zugzwang, false);
+assert.strictEqual(solver.zugzwangMove(tm, 5000, 4), null);                       // e2 forks; the usual rules play it
+let ta = solver.analyze(tm, 5000);
+for (const ch of 'ce') { const e = ta.cols.find(x => x.col === ch.charCodeAt(0) - 97); assert.ok(e.outcome === 'win' && e.plies === 3); }
 // property over random endgames: a "take" really wins on the named square; a "defend" avoids a move that loses by zugzwang
 let rseed = 5; const rr = () => (rseed = (rseed * 16807) % 2147483647) / 2147483647;
 let takes = 0, defends = 0;

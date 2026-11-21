@@ -248,7 +248,14 @@ function createC4Solver() {
 
   // ---- zugzwang ----
   // A win "by zugzwang" is one that ends on a square that could not be played yet, because the loser is finally
-  // forced to play directly underneath it (every other move is worse or gone).
+  // forced to play directly underneath it by running out of safe moves. If the loser played underneath only to
+  // block an immediate threat, that is an ordinary forcing sequence, not zugzwang.
+
+  // can player p win immediately somewhere right now?
+  function hasImmediateWin(p) {
+    for (var c = 0; c < W; c++) { var r = hts[c]; if (r < H && wins(c, r, p)) return true; }
+    return false;
+  }
 
   // Play the best line out for both sides from `moves` (optionally forcing the first move) and report how it ends.
   function principalLine(moves, ms, firstCol) {
@@ -257,7 +264,7 @@ function createC4Solver() {
       cells.fill(0); hts.fill(0); n = 0; h1 = 0; h2 = 0;
       for (i = 0; i < seq.length; i++) put(seq[i], (i % 2) + 1);
       p = (n % 2) + 1; row = hts[firstCol]; win = wins(firstCol, row, p);
-      line.push({ col: firstCol, row: row + 1, player: p, win: win });
+      line.push({ col: firstCol, row: row + 1, player: p, win: win, forced: hasImmediateWin(3 - p) });
       seq.push(firstCol);
       if (win) return line;
     }
@@ -268,7 +275,7 @@ function createC4Solver() {
       if (!r.proven || r.col < 0 || r.theory) return null;
       p = (seq.length % 2) + 1; c = r.col; row = hts[c];            // think() leaves the board at `seq`
       win = wins(c, row, p);
-      line.push({ col: c, row: row + 1, player: p, win: win });
+      line.push({ col: c, row: row + 1, player: p, win: win, forced: hasImmediateWin(3 - p) });
       seq.push(c);
       if (win) break;
     }
@@ -280,7 +287,7 @@ function createC4Solver() {
     var last = line && line[line.length - 1];
     if (!last || !last.win) return { zug: false };
     var prev = line[line.length - 2];
-    var zug = !!prev && prev.col === last.col && prev.row === last.row - 1 && startHts[last.col] < last.row - 1;
+    var zug = !!prev && prev.col === last.col && prev.row === last.row - 1 && startHts[last.col] < last.row - 1 && !prev.forced;
     return { zug: zug, spot: 'abcdefg'[last.col] + last.row, winnerPlayer: last.player, plies: line.length, spots: line.map(function (x) { return 'abcdefg'[x.col] + x.row; }) };
   }
   function heightsOf(moves) { var h = [0, 0, 0, 0, 0, 0, 0]; for (var k = 0; k < moves.length; k++) h[moves[k]]++; return h; }
@@ -307,10 +314,12 @@ function createC4Solver() {
     var t0 = Date.now(), startHts = heightsOf(moves), k, e, cl, line;
     var a = analyze(moves, timeMs * 0.5);
     var rest = function () { return Math.max(100, timeMs - (Date.now() - t0)); };
-    var bestTake = null;
+    var bestTake = null, fastest = 1000;
+    for (k = 0; k < a.cols.length; k++) if (a.cols[k].proven && a.cols[k].outcome === 'win' && a.cols[k].plies < fastest) fastest = a.cols[k].plies;
     for (k = 0; k < a.cols.length; k++) {
       e = a.cols[k];
-      if (!(e.proven && e.outcome === 'win') || e.plies <= 1) continue;
+      // only a zugzwang win that is also the fastest win: no slow squeeze when a quick win exists
+      if (!(e.proven && e.outcome === 'win') || e.plies <= 1 || e.plies > fastest) continue;
       line = principalLine(moves, rest() / 2, e.col);
       cl = classifyLine(line, startHts);
       if (cl.zug && (!bestTake || cl.plies < bestTake.plies)) bestTake = { kind: 'take', col: e.col, spot: cl.spot, plies: e.plies, spots: cl.spots };
