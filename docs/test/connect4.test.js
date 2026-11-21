@@ -116,6 +116,30 @@ for (let n = 0; n < 3000; n++) {
   assert.ok(mine.length >= 2, 'fork needs two winning columns'); assert.ok(!g.availableCols().some(c => g.wouldWin(c, them)));
 }
 assert.ok(forks > 20 && lines > 0, 'expected to see forks in random play: ' + forks + '/' + lines);
+// stopping the opponent's fork: red d1 e1 vs yellow d2 - red threatens a fork on c1 or f1, so yellow must play c1 or f1
+g = Connect4.parse('R-d1-d2-e1'); assert.strictEqual(g.currentTurn, 'yellow');
+for (const r of [0.01, 0.5, 0.99]) {
+  mv = g.pickMove(2, () => r);
+  assert.ok(['c', 'f'].includes(mv.col), mv.col); assert.strictEqual(mv.reason, 'prevent-fork');
+  assert.ok(/^Stopping your straight line fork/.test(mv.text), mv.text);
+}
+// property: a prevent-fork move really leaves the opponent without a fork, while some safe alternative would not
+let prevents = 0;
+for (let n = 0; n < 3000; n++) {
+  g = new Connect4({ firstMove: n % 2 ? 'yellow' : 'red' });
+  const plies = Math.floor(rand() * 24);
+  for (let i = 0; i < plies && !g.gameOver; i++) g.dropChecker(g.pickCol(1, rand));
+  if (g.gameOver) continue;
+  const me = g.currentTurn, them = me === 'red' ? 'yellow' : 'red';
+  mv = g.pickMove(2, rand);
+  if (mv.reason !== 'prevent-fork') continue;
+  prevents++;
+  assert.ok(g.findFork(them, me, g.availableCols()), 'opponent had a fork to stop');
+  assert.ok(!g.leavesFork(mv.col, me, them), 'the chosen move must stop it');
+  assert.ok(!g.availableCols().some(c => g.wouldWin(c, me) || g.wouldWin(c, them)), 'win/block come first');
+}
+assert.ok(prevents > 5, 'expected some fork preventions: ' + prevents);
+console.log('fork preventions seen:', prevents);
 console.log('forks seen in random positions:', forks, '(straight line:', lines + ')');
 console.log('all tests passed');
 

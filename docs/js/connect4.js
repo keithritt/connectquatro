@@ -163,9 +163,9 @@
 
   // Pick a move for the computer and explain why.
   //  skill 1 (easy):   random column - same as the original Python version
-  //  skill 2 (medium): win if it can, block if it must, set up a fork, avoid handing over a win, otherwise the middle column, else random
+  //  skill 2 (medium): win if it can, block if it must, set up a fork, stop yours, avoid handing over a win, otherwise the middle column, else random
   // Returns { col, reason, text } where reason is one of:
-  //  'win' | 'block' | 'fork-line' | 'fork' | 'center' | 'random' | 'forced'
+  //  'win' | 'block' | 'fork-line' | 'fork' | 'prevent-fork' | 'center' | 'random' | 'forced'
   Connect4.prototype.pickMove = function (skill, rand) {
     rand = rand || Math.random;
     var cols = this.availableCols();
@@ -214,6 +214,23 @@
       return { col: forced, reason: 'forced', text: 'Every column sets you up to win, so this is the least bad choice (picked at random).' };
     }
 
+    // stop the opponent's fork: if they could fork next turn, play a safe move after which they can't
+    var theirFork = this.findFork(them, me, cols, rand);
+    if (theirFork) {
+      var stoppers = safe.filter(function (col) { return !self.leavesFork(col, me, them); });
+      if (stoppers.length && stoppers.length < safe.length) {
+        var distTo = { a: 3, b: 2, c: 1, d: 0, e: 1, f: 2, g: 3 };
+        var nearest = Math.min.apply(null, stoppers.map(function (c) { return distTo[c]; }));
+        var choices = stoppers.filter(function (c) { return distTo[c] === nearest; });
+        return {
+          col: pickRandom(choices), reason: 'prevent-fork',
+          text: 'Stopping your ' + (theirFork.straight ? 'straight line fork' : 'double threat') + ' (you could play ' +
+            theirFork.col + (self.heights[theirFork.col] + 1) + ', threatening ' + theirFork.threats.join(' and ') + ').' +
+            (skipped.length ? ' (Avoided ' + skipped.join(', ') + ': filling the spot below would let you win there.)' : '')
+        };
+      }
+    }
+
     // nothing obvious: take the middle column; if it is full or unsafe, pick at random among the safe columns
     var pick, reason, text;
     if (safe.indexOf('d') !== -1) {
@@ -254,6 +271,17 @@
     var best = Math.min.apply(null, found.map(function (f) { return dist[f.col]; }));
     var closest = found.filter(function (f) { return dist[f.col] === best; });
     return closest[Math.floor((rand || Math.random)() * closest.length)];
+  };
+
+  // After `me` plays `col`, can `them` fork next turn?
+  Connect4.prototype.leavesFork = function (col, me, them) {
+    var spot = col + (this.heights[col] + 1);
+    this.grid[spot] = me;
+    this.heights[col] += 1;
+    var fork = this.findFork(them, me, this.availableCols());
+    this.heights[col] -= 1;
+    delete this.grid[spot];
+    return fork !== null;
   };
 
   // do the spot and every threat spot lie on one row or one diagonal?

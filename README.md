@@ -30,13 +30,13 @@ node docs/test/connect4.test.js
 - **Pass and play:** set *Opponent* to "Another person" and two people take turns on the same screen
   (red and yellow, with their own score). You can switch opponent mid-game; the position is kept.
 - Two computer levels: **Easy** (random moves, like the original) and **Medium** (takes a win,
-  blocks yours, sets up forks, avoids setting you up, otherwise the middle column, or a random one if that is unavailable).
+  blocks yours, sets up forks, stops yours, avoids setting you up, otherwise the middle column, or a random one if that is unavailable).
 - A **Game stats** panel for studying play: moves remaining, and for each color how many of the 69
   possible four-in-a-row lines are still open (with 1, 2 or 3 of that color's checkers already in them),
   plus how many "sevens" are still open (a row of four plus a diagonal of four from one end, sharing an
   empty corner, so filling the corner makes a double threat).
 - The computer explains every move (victory, blocking your Connect Four, "Forcing win: straight line fork"
-  when it makes an open three you can't fully block, staying near the center,
+  when it makes an open three you can't fully block, "Stopping your fork" when you were about to make one, staying near the center,
   avoiding a setup, or random), shown under the board and in a running **Move log**.
 - **Shareable positions:** the URL hash always holds the current board (e.g. `#R-d1-e1-d2`: first
   mover, then every spot in order). Copy the link from the *Share this position* card to send or
