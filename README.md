@@ -27,6 +27,8 @@ node docs/test/connect4.test.js
 - Wins are detected in all four directions (the Python version only checked vertical lines).
 - Tie detection works when the board fills up.
 - Either player can go first.
+- **Pass and play:** set *Opponent* to "Another person" and two people take turns on the same screen
+  (red and yellow, with their own score). You can switch opponent mid-game; the position is kept.
 - Two computer levels: **Easy** (random moves, like the original) and **Medium** (takes a win,
   blocks yours, avoids setting you up, otherwise the middle column, or a random one if that is unavailable).
 - A **Game stats** panel for studying play: moves remaining, and for each color how many of the 69

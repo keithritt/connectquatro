@@ -26,12 +26,14 @@
   var resultModal = window.bootstrap ? new bootstrap.Modal(resultModalEl) : null;
 
   var saved = load();
-  var score = saved.score || { w: 0, l: 0, t: 0 };
+  var score = saved.score || { w: 0, l: 0, t: 0 };          // you vs the computer
+  var score2 = saved.score2 || { r: 0, y: 0, t: 0 };        // pass and play
+  var mode = saved.mode === 'two' ? 'two' : 'cpu';            // 'cpu' = play the computer, 'two' = two people
   var game;
   var reasons = [];   // reasons[i] explains game.history[i]; null for the human's moves
   var busy = false;      // true while the computer is "thinking"
   var cpuTimer = null;
-  var counted = false;   // has the current game's result been added to the score?
+  var counted = false;   // which score ('cpu' or 'two') this game's result was added to, or false
 
   // ---------- storage (optional - the page works without it) ----------
   function load() {
@@ -41,6 +43,8 @@
     try {
       localStorage.setItem(STORE_KEY, JSON.stringify({
         score: score,
+        score2: score2,
+        mode: mode,
         history: game.getHistory(),
         reasons: reasons,
         skill: skillEl.value,
@@ -53,6 +57,10 @@
     return document.querySelector('input[name="first"]:checked').value;
   }
   function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+  function twoPlayer() { return mode === 'two'; }
+  function humanTurn() { return twoPlayer() || game.currentTurn === HUMAN; }   // does a person move next?
+  function isCpuTurn() { return !twoPlayer() && game.currentTurn === CPU; }
 
   // ---------- build the board ----------
   function buildBoard() {
@@ -108,18 +116,21 @@
       });
     });
 
-    var canPlay = !game.gameOver && !busy && game.currentTurn === HUMAN;
+    var canPlay = !game.gameOver && !busy && humanTurn();
     dropRowEl.querySelectorAll('.drop-btn').forEach(function (b) {
       b.disabled = !canPlay || !game.isColAvailable(b.dataset.col);
       if (b.disabled) b.classList.remove('preview', 'red', 'yellow');
     });
-    undoBtn.disabled = busy || !game.history.some(function (s) { return game.grid[s] === HUMAN; });
+    undoBtn.disabled = busy || (twoPlayer() ? !game.history.length : !game.history.some(function (s) { return game.grid[s] === HUMAN; }));
 
     renderStatus();
     renderStats();
     renderLog();
     syncLink();
-    scoreEl.textContent = score.w + ' W · ' + score.l + ' L · ' + score.t + ' T';
+    scoreEl.textContent = twoPlayer()
+      ? 'Red ' + score2.r + ' · Yellow ' + score2.y + ' · Tie ' + score2.t
+      : score.w + ' W · ' + score.l + ' L · ' + score.t + ' T';
+    renderMode();
   }
 
   function renderStats() {
@@ -149,7 +160,7 @@
       if (why) lastCpu = why;
       html += '<li' + (i === game.history.length - 1 ? ' class="latest"' : '') + '><span class="n">' + (i + 1) + '.</span>' +
         '<span class="dot ' + color + '"></span><span class="spot">' + spot + '</span>' +
-        '<span class="why">' + (color === HUMAN ? 'You' : escapeHtml(why || 'Computer')) + '</span></li>';
+        '<span class="why">' + (twoPlayer() ? cap(color) : color === HUMAN ? 'You' : escapeHtml(why || 'Computer')) + '</span></li>';
     });
     logEl.innerHTML = html;
     $('why-text').textContent = lastCpu || 'It will explain each of its moves here.';
@@ -184,12 +195,28 @@
     return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; });
   }
 
+  // labels and panels that depend on who you're playing
+  function renderMode() {
+    var two = twoPlayer();
+    $('why').classList.toggle('d-none', two);
+    $('skill-col').classList.toggle('d-none', two);
+    document.querySelector('label[for="first-you"]').textContent = two ? 'Red' : 'You';
+    document.querySelector('label[for="first-cpu"]').textContent = two ? 'Yellow' : 'Computer';
+    $('help').textContent = two
+      ? 'Pass and play: take turns on the same screen. Red is shown as the first checker color. Who goes first applies to the next game.'
+      : "You're red. Tap a column to drop a checker. Who goes first and the computer level apply to the next game.";
+    $('mode').value = mode;
+  }
+
   function renderStatus() {
     var html;
     if (game.status === 'win') {
-      html = '<span class="dot ' + game.winner + '"></span>' + (game.winner === HUMAN ? 'You win!' : 'Computer wins');
+      html = '<span class="dot ' + game.winner + '"></span>' +
+        (twoPlayer() ? cap(game.winner) + ' wins!' : game.winner === HUMAN ? 'You win!' : 'Computer wins');
     } else if (game.status === 'tie') {
       html = 'Tie game.';
+    } else if (twoPlayer()) {
+      html = '<span class="dot ' + game.currentTurn + '"></span>' + cap(game.currentTurn) + "'s turn";
     } else if (game.currentTurn === HUMAN && !busy) {
       html = '<span class="dot red"></span>Your turn';
     } else {
@@ -211,7 +238,7 @@
     save();
     if (game.gameOver) {
       finish();
-    } else if (game.currentTurn === CPU) {
+    } else if (isCpuTurn()) {
       cpuTurn();
     }
   }
@@ -228,8 +255,11 @@
   }
 
   function finish() {
-    counted = true;
-    if (game.status === 'win' && game.winner === HUMAN) score.w++;
+    counted = mode;
+    if (twoPlayer()) {
+      if (game.status === 'win') score2[game.winner === 'red' ? 'r' : 'y']++;
+      else score2.t++;
+    } else if (game.status === 'win' && game.winner === HUMAN) score.w++;
     else if (game.status === 'win') score.l++;
     else score.t++;
     save();
@@ -237,6 +267,7 @@
 
     var title, body;
     if (game.status === 'tie') { title = 'Tie game'; body = 'The board is full - nobody connected four.'; }
+    else if (twoPlayer()) { title = cap(game.winner) + ' wins!'; body = 'Four in a row: ' + game.winningSeq.join(', ') + '.'; }
     else if (game.winner === HUMAN) { title = 'You win!'; body = 'Four in a row: ' + game.winningSeq.join(', ') + '.'; }
     else { title = 'Computer wins'; body = 'It connected ' + game.winningSeq.join(', ') + '.'; }
     $('result-title').textContent = title;
@@ -254,29 +285,36 @@
     else while (reasons.length < game.history.length) reasons.push(null);
     render();
     save();
-    if (!game.gameOver && game.currentTurn === CPU) cpuTurn();
+    if (!game.gameOver && isCpuTurn()) cpuTurn();
   }
 
   function undo() {
     if (busy) return;
-    var wasOver = game.gameOver;
+    var wasCounted = counted;      // which score (if any) this finished game was added to
     var status = game.status, winner = game.winner;
     counted = false;
-    // take back moves up to and including the human's last move
-    var popped;
-    do {
-      popped = game.grid[game.lastSpot()];
-      game.undo();
-    } while (popped !== HUMAN && game.history.length);
+    if (twoPlayer()) {
+      game.undo();                 // pass and play: take back just the last move
+    } else {
+      // against the computer: take back moves up to and including your last move
+      var popped;
+      do {
+        popped = game.grid[game.lastSpot()];
+        game.undo();
+      } while (popped !== HUMAN && game.history.length);
+    }
     reasons.length = game.history.length;
-    if (wasOver && counted) { // un-count the finished game
+    if (wasCounted === 'two') {    // un-count the finished game
+      if (status === 'tie') score2.t = Math.max(0, score2.t - 1);
+      else score2[winner === 'red' ? 'r' : 'y'] = Math.max(0, score2[winner === 'red' ? 'r' : 'y'] - 1);
+    } else if (wasCounted === 'cpu') {
       if (status === 'tie') score.t = Math.max(0, score.t - 1);
       else if (winner === HUMAN) score.w = Math.max(0, score.w - 1);
       else score.l = Math.max(0, score.l - 1);
     }
     render();
     save();
-    if (game.currentTurn === CPU) cpuTurn();
+    if (isCpuTurn()) cpuTurn();
   }
 
   // ---------- events ----------
@@ -285,7 +323,7 @@
     return el ? el.dataset.col : null;
   }
   function tryPlay(col) {
-    if (!col || busy || game.gameOver || game.currentTurn !== HUMAN) return;
+    if (!col || busy || game.gameOver || !humanTurn()) return;
     play(col);
   }
   dropRowEl.addEventListener('click', function (e) { tryPlay(colFromEvent(e)); });
@@ -295,7 +333,8 @@
     dropRowEl.querySelectorAll('.drop-btn').forEach(function (b) {
       var on = b.dataset.col === col && !b.disabled;
       b.classList.toggle('preview', on);
-      b.classList.toggle(HUMAN, on);
+      b.classList.toggle('red', on && game.currentTurn === 'red');
+      b.classList.toggle('yellow', on && game.currentTurn === 'yellow');
     });
   }
   [boardEl, dropRowEl].forEach(function (el) {
@@ -320,6 +359,15 @@
   });
   undoBtn.addEventListener('click', undo);
   skillEl.addEventListener('change', save);
+  // switching opponent keeps the current position and just changes who controls yellow
+  $('mode').addEventListener('change', function () {
+    mode = $('mode').value === 'two' ? 'two' : 'cpu';
+    if (cpuTimer) { clearTimeout(cpuTimer); cpuTimer = null; }
+    busy = false;
+    render();
+    save();
+    if (!game.gameOver && isCpuTurn()) cpuTurn();
+  });
   document.querySelectorAll('input[name="first"]').forEach(function (r) { r.addEventListener('change', save); });
 
   $('copy-link').addEventListener('click', function () {
@@ -340,6 +388,7 @@
 
   // ---------- start ----------
   if (saved.skill) skillEl.value = saved.skill;
+  $('mode').value = mode;
   if (saved.first === CPU) $('first-cpu').checked = true;
   buildBoard();
   var fromLink = location.hash.length > 1 && Connect4.parse(location.hash.slice(1));

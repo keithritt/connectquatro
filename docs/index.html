@@ -110,6 +110,13 @@
     <div class="card mt-3">
       <div class="card-body">
         <div class="row g-3">
+          <div class="col-12">
+            <label for="mode" class="form-label small text-body-secondary mb-1">Opponent</label>
+            <select id="mode" class="form-select">
+              <option value="cpu" selected>Computer</option>
+              <option value="two">Another person (pass and play)</option>
+            </select>
+          </div>
           <div class="col-12 col-sm-6">
             <label class="form-label small text-body-secondary mb-1">Who goes first</label>
             <div class="btn-group w-100" role="group" aria-label="Who goes first">
@@ -119,7 +126,7 @@
               <label class="btn btn-outline-primary" for="first-cpu">Computer</label>
             </div>
           </div>
-          <div class="col-12 col-sm-6">
+          <div class="col-12 col-sm-6" id="skill-col">
             <label for="skill" class="form-label small text-body-secondary mb-1">Computer</label>
             <select id="skill" class="form-select">
               <option value="1">Easy – random moves</option>
@@ -127,7 +134,7 @@
             </select>
           </div>
         </div>
-        <p class="small text-body-secondary mb-0 mt-3">You're red. Tap a column to drop a checker. Settings apply to the next game.</p>
+        <p class="small text-body-secondary mb-0 mt-3" id="help">You're red. Tap a column to drop a checker. Who goes first and the computer level apply to the next game.</p>
       </div>
     </div>
   </main>
