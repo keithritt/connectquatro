@@ -10,6 +10,7 @@
   var HUMAN = 'red';
   var CPU = 'yellow';
   var CPU_DELAY = 550;
+  var ANALYZE_MS = 3500;   // time limit for rating a move / analyzing a position
   var PERFECT_MS = 4000;   // time limit for one move on the Perfect level
   var STORE_KEY = 'connectquatro';
 
@@ -34,6 +35,10 @@
   var reasons = [];   // reasons[i] explains game.history[i]; null for the human's moves
   var thinkId = 0;       // identifies the search whose answer we still want
   var worker = null;     // Web Worker running the Perfect solver
+  var analysisWorker = null;   // a second one for move ratings, so rating never delays the computer
+  var analysisId = 0;
+  var autoRate = saved.rate !== false;
+  var ratings = [];      // ratings[i]: short verdict for the move game.history[i], if it was rated
   var mainSolver = null; // used only if workers aren't available
   var busy = false;      // true while the computer is "thinking"
   var cpuTimer = null;
@@ -49,6 +54,7 @@
         score: score,
         score2: score2,
         mode: mode,
+        rate: autoRate,
         history: game.getHistory(),
         reasons: reasons,
         skill: skillEl.value,
@@ -164,7 +170,8 @@
       if (why) lastCpu = why;
       html += '<li' + (i === game.history.length - 1 ? ' class="latest"' : '') + '><span class="n">' + (i + 1) + '.</span>' +
         '<span class="dot ' + color + '"></span><span class="spot">' + spot + '</span>' +
-        '<span class="why">' + (twoPlayer() ? cap(color) : color === HUMAN ? 'You' : escapeHtml(why || 'Computer')) + '</span></li>';
+        '<span class="why">' + (twoPlayer() ? cap(color) : color === HUMAN ? 'You' : escapeHtml(why || 'Computer')) +
+        (ratings[i] ? ' <span class="badge text-bg-light border">' + escapeHtml(ratings[i]) + '</span>' : '') + '</span></li>';
     });
     logEl.innerHTML = html;
     $('why-text').textContent = lastCpu || 'It will explain each of its moves here.';
@@ -234,8 +241,10 @@
 
   // ---------- game flow ----------
   function play(col, reason) {
+    var preMoves = historyCols(game.history), mover = game.currentTurn;
     var spot = game.dropChecker(col);
     if (!spot) return;
+    if (!reason && autoRate) rateMove(preMoves, COLS.indexOf(col), game.history.length - 1, twoPlayer() ? cap(mover) : 'You');
     reasons.length = game.history.length - 1;
     reasons.push(reason || null);
     render(spot);
@@ -267,16 +276,16 @@
   }
 
   // ---------- the Perfect level: solver.js runs in a Web Worker so the page stays responsive ----------
-  function getWorker() {
-    if (worker) return worker;
+  function makeWorker() {
     try {
       var src = 'var createC4Solver = ' + createC4Solver.toString() + ';\n' +
         'var solver = createC4Solver();\n' +
-        'onmessage = function (e) { var d = e.data; postMessage({ id: d.id, result: solver.think(d.moves, d.ms) }); };';
-      worker = new Worker(URL.createObjectURL(new Blob([src], { type: 'application/javascript' })));
-    } catch (e) { worker = null; }
-    return worker;
+        'onmessage = function (e) { var d = e.data;\n' +
+        '  postMessage({ id: d.id, result: d.type === "analyze" ? solver.analyze(d.moves, d.ms) : solver.think(d.moves, d.ms) }); };';
+      return new Worker(URL.createObjectURL(new Blob([src], { type: 'application/javascript' })));
+    } catch (e) { return null; }
   }
+  function getWorker() { return worker || (worker = makeWorker()); }
 
   function thinkPerfect(done) {
     var id = ++thinkId;
@@ -292,13 +301,127 @@
     if (!w) return onMain();
     w.onmessage = function (e) { if (e.data.id === id) done(e.data.result); };
     w.onerror = function () { if (worker) { worker.terminate(); worker = null; } onMain(); };
-    w.postMessage({ id: id, moves: moves, ms: PERFECT_MS });
+    w.postMessage({ id: id, type: 'think', moves: moves, ms: PERFECT_MS });
   }
 
   function cancelThinking() {
     thinkId++;                                   // ignore any answer still on its way
     if (worker) { worker.terminate(); worker = null; }
     if (cpuTimer) { clearTimeout(cpuTimer); cpuTimer = null; }
+  }
+
+  // ---------- move analysis: every option rated against exact play ----------
+  function historyCols(h) { return h.map(function (spot) { return COLS.indexOf(spot[0]); }); }
+
+  function runAnalysis(moves, done) {
+    var id = ++analysisId;
+    function onMain() {
+      setTimeout(function () {
+        if (id !== analysisId) return;
+        mainSolver = mainSolver || createC4Solver();
+        done(mainSolver.analyze(moves, 1200));
+      }, 30);
+    }
+    if (!analysisWorker) analysisWorker = makeWorker();
+    var w = analysisWorker;
+    if (!w) return onMain();
+    w.onmessage = function (e) { if (e.data.id === id) done(e.data.result); };
+    w.onerror = function () { if (analysisWorker) { analysisWorker.terminate(); analysisWorker = null; } onMain(); };
+    w.postMessage({ id: id, type: 'analyze', moves: moves, ms: ANALYZE_MS });
+  }
+
+  function cancelAnalysis() {
+    analysisId++;
+    if (analysisWorker) { analysisWorker.terminate(); analysisWorker = null; }
+  }
+
+  function resetAnalysisPanel() {
+    $('rate-verdict').textContent = "Make a move and I'll rate it against perfect play, or analyze the position.";
+    $('rate-table').innerHTML = '';
+  }
+
+  // "Win in 3" / "Loss in 2" / "Draw" / "≈ +12"
+  function resultText(e) {
+    if (e.outcome === 'win') return e.theory ? 'Win (known result)' : 'Win in ' + (e.plies + 1) / 2;
+    if (e.outcome === 'loss') return e.theory ? 'Loss (known result)' : 'Loss in ' + e.plies / 2;
+    if (e.outcome === 'draw') return 'Draw';
+    return '≈ ' + (e.score > 0 ? '+' : '') + e.score;
+  }
+  function rank(e) { return e.outcome === 'win' ? 2 : e.outcome === 'draw' ? 1 : e.outcome === 'loss' ? 0 : -1; }
+
+  // Compare the move that was played with the best available. Returns { label, text, kind }.
+  function rateChoice(a, col, who) {
+    var mine = a.cols.filter(function (e) { return e.col === col; })[0];
+    var bestScore = Math.max.apply(null, a.cols.map(function (e) { return e.score; }));
+    var bests = a.cols.filter(function (e) { return e.score === bestScore; });
+    var best = bests[0];
+    var bestNames = bests.map(function (e) { return COLS[e.col]; }).join(' or ');
+    var played = COLS[col];
+    var r;
+    if (!mine) return null;
+    if (mine.score === bestScore) {
+      var sure = mine.proven;
+      r = { label: sure ? 'Best move' : 'Best found', kind: 'good',
+        text: who + ' played ' + played + ': ' + (sure ? 'the best move' : 'the best move I could find') +
+          ' (' + resultText(mine) + ').' + (bests.length > 1 ? ' Equally good: ' + bests.filter(function (e) { return e !== mine; }).map(function (e) { return COLS[e.col]; }).join(', ') + '.' : '') };
+    } else if (mine.proven && best.proven) {
+      var rm = rank(mine), rb = rank(best);
+      if (rm === rb && rm === 2) r = { label: 'Slower win', kind: 'ok', text: who + ' played ' + played + ': still a forced win (' + resultText(mine) + '), but ' + bestNames + ' was faster (' + resultText(best) + ').' };
+      else if (rm === rb && rm === 0) r = { label: 'Loses sooner', kind: 'bad', text: who + ' played ' + played + ': the position was already lost, and this loses sooner (' + resultText(mine) + '). ' + bestNames + ' held out longer (' + resultText(best) + ').' };
+      else if (rb === 2 && rm === 1) r = { label: 'Mistake', kind: 'bad', text: who + ' played ' + played + ': that lets a win slip to a draw. ' + bestNames + ' won (' + resultText(best) + ').' };
+      else r = { label: 'Blunder', kind: 'bad', text: who + ' played ' + played + ': that loses by force (' + resultText(mine) + '). ' + bestNames + ' was ' + resultText(best).toLowerCase() + '.' };
+    } else if (mine.proven && mine.outcome === 'loss') {
+      r = { label: 'Blunder', kind: 'bad', text: who + ' played ' + played + ': that loses by force (' + resultText(mine) + '). ' + bestNames + ' was better.' };
+    } else if (best.proven && best.outcome === 'win') {
+      r = { label: 'Missed win', kind: 'bad', text: bestNames + ' wins by force (' + resultText(best) + '). ' + who + ' played ' + played + ', which I couldn\'t prove is winning.' };
+    } else {
+      var diff = bestScore - mine.score;
+      r = diff <= 8 ? { label: 'Close (est.)', kind: 'ok', text: who + ' played ' + played + ': close to the best I found, ' + bestNames + ' (estimate).' }
+        : diff <= 30 ? { label: 'Inaccuracy? (est.)', kind: 'warn', text: who + ' played ' + played + ': ' + bestNames + ' looks better (estimate: too open to solve).' }
+        : { label: 'Weaker (est.)', kind: 'warn', text: who + ' played ' + played + ': ' + bestNames + ' looks clearly better (estimate: too open to solve).' };
+    }
+    return r;
+  }
+
+  function renderAnalysisTable(a, playedCol) {
+    var bestScore = Math.max.apply(null, a.cols.map(function (e) { return e.score; }));
+    var rows = a.cols.map(function (e) {
+      var tags = [];
+      if (e.score === bestScore) tags.push('best');
+      if (e.col === playedCol) tags.push('played');
+      var cls = e.score === bestScore ? ' class="table-success"' : e.outcome === 'loss' && e.proven ? ' class="table-danger"' : '';
+      return '<tr' + cls + '><th scope="row" class="fw-semibold">' + COLS[e.col] + '</th><td>' + resultText(e) +
+        '</td><td class="text-end text-body-secondary">' + tags.join(' · ') + '</td></tr>';
+    }).join('');
+    var depth = a.theory ? '' : '<caption class="small caption-top pb-1">' + (a.depth >= a.empties - 1 ? 'Solved to the end of the game.' : 'Looked ' + a.depth + ' moves ahead in ' + (a.ms / 1000).toFixed(1) + ' s.') + '</caption>';
+    $('rate-table').innerHTML = '<table class="table table-sm mb-0 align-middle">' + depth + '<tbody>' + rows + '</tbody></table>';
+  }
+
+  // rate a move that was just played; `preMoves` is the position before it
+  function rateMove(preMoves, col, index, who) {
+    $('rate-verdict').textContent = 'Rating ' + COLS[col] + '…';
+    $('rate-table').innerHTML = '';
+    runAnalysis(preMoves, function (a) {
+      var r = rateChoice(a, col, who);
+      if (!r) return;
+      ratings[index] = r.label;
+      $('rate-verdict').innerHTML = '<span class="badge text-bg-' + (r.kind === 'good' ? 'success' : r.kind === 'ok' ? 'secondary' : r.kind === 'warn' ? 'warning' : 'danger') + ' me-2">' + r.label + '</span>' + r.text;
+      renderAnalysisTable(a, col);
+      renderLog();
+    });
+  }
+
+  function analyzeCurrent() {
+    if (game.gameOver) return;
+    $('rate-verdict').textContent = 'Analyzing…';
+    $('rate-table').innerHTML = '';
+    runAnalysis(historyCols(game.history), function (a) {
+      var bests = a.cols.filter(function (e) { return e.score === Math.max.apply(null, a.cols.map(function (x) { return x.score; })); });
+      var b = bests[0];
+      $('rate-verdict').textContent = cap(game.currentTurn) + ' to move. Best: ' + bests.map(function (e) { return COLS[e.col]; }).join(' or ') +
+        ' (' + resultText(b) + (b.proven ? '' : ', estimate') + ').';
+      renderAnalysisTable(a, -1);
+    });
   }
 
   // say what the solver proved (or didn't)
@@ -342,6 +465,8 @@
 
   function newGame(historyStr) {
     cancelThinking();
+    cancelAnalysis(); resetAnalysisPanel();
+    ratings = [];
     busy = false;
     game = (historyStr && Connect4.parse(historyStr)) || new Connect4({ firstMove: firstChoice() });
     counted = false;
@@ -369,6 +494,8 @@
       } while (popped !== HUMAN && game.history.length);
     }
     reasons.length = game.history.length;
+    ratings.length = game.history.length;
+    cancelAnalysis(); resetAnalysisPanel();
     if (wasCounted === 'two') {    // un-count the finished game
       if (status === 'tie') score2.t = Math.max(0, score2.t - 1);
       else score2[winner === 'red' ? 'r' : 'y'] = Math.max(0, score2[winner === 'red' ? 'r' : 'y'] - 1);
@@ -435,6 +562,9 @@
   });
   document.querySelectorAll('input[name="first"]').forEach(function (r) { r.addEventListener('change', save); });
 
+  $('analyze-btn').addEventListener('click', analyzeCurrent);
+  $('rate-auto').checked = autoRate;
+  $('rate-auto').addEventListener('change', function () { autoRate = $('rate-auto').checked; save(); });
   $('copy-link').addEventListener('click', function () {
     var input = $('link');
     input.select();

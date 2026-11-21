@@ -50,6 +50,10 @@ node docs/test/solver.test.js
   *proven* perfect and it says so ("forced win in 3 moves", "this position is lost, this move holds out
   longest"). Early in the game too many moves remain to solve in a browser, so it reports a best guess
   and how many moves ahead it looked. The first move is the center column, a known win for the first player.
+- **Move analysis:** after each of your moves it rates the move against exact play (Best move, Slower win,
+  Mistake, Blunder, Missed win ...) and shows every option as "Win in 3", "Loss in 2", "Draw" or an
+  estimate when the position is too open to solve in 3.5 s. *Analyze this position* does the same
+  for the side to move, so you can study any link. Ratings also appear as badges in the move log.
 - Undo, a running score, and the game in progress are saved in the browser.
 
 ## Django version

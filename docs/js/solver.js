@@ -46,6 +46,7 @@ function createC4Solver() {
   }
   var NLINES = LINES.length / 4;
   var LW = [0, 1, 6, 30, 0];
+  var CW = [0, 1, 2, 4, 2, 1, 0];
 
   function evalPos(p) {
     var s = 0;
@@ -56,6 +57,9 @@ function createC4Solver() {
         if (v === p) m++; else if (v !== 0) t++;
       }
       if (t === 0) s += LW[m]; else if (m === 0) s -= LW[t];
+    }
+    for (var cc = 0; cc < W; cc++) {                       // checkers nearer the center are worth a little more
+      for (var rr = 0; rr < hts[cc]; rr++) s += cells[cc * 6 + rr] === p ? CW[cc] : -CW[cc];
     }
     return s;
   }
@@ -181,7 +185,68 @@ function createC4Solver() {
     return result;
   }
 
-  return { think: think };
+  // Evaluate EVERY legal move for the player to move (used to rate moves and to analyze a position).
+  // Returns { cols: [ { col, score, depth, proven, outcome, plies } ... ] for the legal columns, best: col, depth, ms }
+  // Scores are from the mover's point of view; outcome/plies work as in think().
+  function analyze(moves, timeMs) {
+    var t0 = Date.now();
+    // Known theory for the empty board: the center column wins, its neighbours draw, the outer columns lose.
+    if (moves.length === 0) {
+      var known = [['loss'], ['loss'], ['draw'], ['win'], ['draw'], ['loss'], ['loss']], list = [];
+      for (var kc = 0; kc < W; kc++) {
+        var o = known[kc][0];
+        list.push({ col: kc, score: o === 'win' ? WIN - 41 : o === 'loss' ? -(WIN - 42) : 0, depth: 0, outcome: o, proven: true, plies: 0, theory: true });
+      }
+      return { cols: list, best: 3, depth: 0, empties: N, ms: 0, theory: true };
+    }
+    cells.fill(0); hts.fill(0); n = 0; h1 = 0; h2 = 0; nodes = 0;
+    for (i = 0; i < moves.length; i++) put(moves[i], (i % 2) + 1);
+    var p = (n % 2) + 1, q = 3 - p, empties = N - n;
+    deadline = t0 + timeMs;
+    var out = [], c, r;
+    for (c = 0; c < W; c++) {
+      if (hts[c] >= H) continue;
+      r = hts[c];
+      var e = { col: c, score: 0, depth: 0, done: false };
+      if (wins(c, r, p)) { e.score = WIN - 1; e.done = true; }
+      else if (empties === 1) { e.score = 0; e.done = true; }
+      else {
+        put(c, p);
+        if (r < H - 1 && wins(c, r + 1, q)) { e.score = -(WIN - 2); e.done = true; }   // hands them the win on top
+        take(c, p);
+      }
+      out.push(e);
+    }
+    var depth, k, timedOut = false;
+    for (depth = 1; depth < empties && !timedOut; depth++) {
+      var open = 0;
+      for (k = 0; k < out.length; k++) {
+        var e2 = out[k];
+        if (e2.done) continue;
+        open++;
+        put(e2.col, p);
+        try { e2.score = -search(q, depth, -100000, 100000, 1); }
+        catch (err) { take(e2.col, p); if (err === TIMEOUT) { timedOut = true; break; } throw err; }
+        take(e2.col, p);
+        e2.depth = depth;
+        if (e2.score >= WINT || e2.score <= -WINT || depth >= empties - 1) e2.done = true;
+      }
+      if (!open) break;
+    }
+    var best = -1, bestScore = -100000;
+    for (k = 0; k < out.length; k++) {
+      var f = out[k];
+      if (f.score >= WINT) { f.outcome = 'win'; f.proven = true; f.plies = WIN - f.score; }
+      else if (f.score <= -WINT) { f.outcome = 'loss'; f.proven = true; f.plies = WIN + f.score; }
+      else if (f.done) { f.outcome = 'draw'; f.proven = true; f.plies = 0; }
+      else { f.outcome = 'unknown'; f.proven = false; f.plies = 0; }
+      if (f.score > bestScore) { bestScore = f.score; best = f.col; }
+      delete f.done;
+    }
+    return { cols: out, best: best, depth: timedOut ? depth - 1 : depth, empties: empties, ms: Date.now() - t0 };
+  }
+
+  return { think: think, analyze: analyze };
 }
 
 if (typeof module !== 'undefined' && module.exports) module.exports = createC4Solver;
